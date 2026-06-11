@@ -1,0 +1,18 @@
+
+# InsForge & AI agent skills
+.insforge
+.env
+.env.local
+.env*.local
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
