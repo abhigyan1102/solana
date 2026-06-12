@@ -447,9 +447,15 @@ const Dashboard: React.FC = () => {
   };
 
   const seedDemoData = async () => {
+    if (!wallet.connected) {
+      showToast('Connect wallet first.', 'error');
+      return;
+    }
+
     setSeedState('loading');
     try {
-      const data = await invokeFunction<any>('seed-demo-data');
+      const walletProof = await getWalletProof();
+      const data = await invokeFunction<any>('seed-demo-data', { walletProof });
       const demoAgents = extractAgents(data, 'demo');
       if (demoAgents.length > 0) {
         setKnownAgents(prev => mergeAgents(prev, demoAgents));
@@ -640,8 +646,8 @@ const Dashboard: React.FC = () => {
               <h2 id="stats-title">Backend activity</h2>
             </div>
             <div className="header-actions">
-              <button className="btn btn-secondary" type="button" onClick={seedDemoData} disabled={!functionsReady || seedState === 'loading'}>
-                {seedState === 'loading' ? 'Seeding...' : 'Seed demo data'}
+              <button className="btn btn-secondary" type="button" onClick={seedDemoData} disabled={!wallet.connected || !functionsReady || seedState === 'loading'}>
+                {!wallet.connected ? 'Connect wallet first' : seedState === 'loading' ? 'Seeding...' : 'Seed demo data'}
               </button>
               <button className="btn btn-secondary" type="button" onClick={refreshStats} disabled={!functionsReady || statsState === 'loading'}>
                 {statsState === 'loading' ? 'Refreshing...' : 'Refresh stats'}

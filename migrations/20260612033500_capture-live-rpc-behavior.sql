@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION public.create_agent(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path = pg_catalog, public, pg_temp
 AS $function$
 DECLARE
   v_agent public.agents%ROWTYPE;
@@ -71,7 +71,7 @@ CREATE OR REPLACE FUNCTION public.get_dashboard_stats(p_agent_id uuid DEFAULT NU
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path = pg_catalog, public, pg_temp
 AS $function$
 DECLARE
   v_stats jsonb;

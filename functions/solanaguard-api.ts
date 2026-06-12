@@ -33,10 +33,12 @@ class HttpError extends Error {
 }
 
 const WALLET_PROOF_TTL_MS = 5 * 60 * 1000;
+const WALLET_PROOF_MAX_FUTURE_SKEW_MS = 30 * 1000;
 
 const routes: Record<string, Route> = {
   'seed-demo-data': {
     rpc: 'seed_demo_data',
+    requiresWalletProof: true,
     args: () => ({})
   },
   'create-agent': {
@@ -138,7 +140,13 @@ function parseWalletProof(value: unknown): WalletProof {
 
 function verifyWalletProof(value: unknown): string {
   const proof = parseWalletProof(value);
-  const age = Math.abs(Date.now() - proof.timestamp);
+  const now = Date.now();
+
+  if (proof.timestamp > now + WALLET_PROOF_MAX_FUTURE_SKEW_MS) {
+    throw new HttpError('walletProof timestamp is too far in the future. Please sign a fresh wallet message.', 401);
+  }
+
+  const age = now - proof.timestamp;
 
   if (age > WALLET_PROOF_TTL_MS) {
     throw new HttpError('walletProof has expired. Please sign a fresh wallet message.', 401);
