@@ -69,6 +69,31 @@ const routes: Record<string, Route> = {
       }
     })
   },
+  'list-audit-logs': {
+    rpc: 'list_audit_logs',
+    requiresWalletProof: true,
+    args: (body) => ({
+      p_wallet_address: body.walletAddress,
+      p_limit: body.limit ?? 25
+    })
+  },
+  'list-transaction-requests': {
+    rpc: 'list_transaction_requests',
+    requiresWalletProof: true,
+    args: (body) => ({
+      p_wallet_address: body.walletAddress,
+      p_limit: body.limit ?? 25
+    })
+  },
+  'toggle-emergency-pause': {
+    rpc: 'toggle_emergency_pause',
+    requiresWalletProof: true,
+    args: (body) => ({
+      p_agent_id: body.agentId,
+      p_emergency_pause: body.emergencyPause,
+      p_wallet_address: body.walletAddress
+    })
+  },
   'get-dashboard-stats': {
     rpc: 'get_dashboard_stats',
     requiresWalletProof: true,

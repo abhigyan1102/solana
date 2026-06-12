@@ -17,6 +17,10 @@ type DashboardStats = {
 
 type AuditLog = {
   id?: string;
+  agentId?: string;
+  agent_id?: string;
+  transactionRequestId?: string;
+  transaction_request_id?: string;
   auditLogId?: string;
   audit_log_id?: string;
   alertId?: string;
@@ -33,6 +37,33 @@ type AuditLog = {
   action?: string;
   programId?: string;
   program_id?: string;
+  matchedRules?: Array<string | Record<string, unknown>>;
+  matched_rules?: Array<string | Record<string, unknown>>;
+};
+
+type TransactionRequest = {
+  id?: string;
+  agentId?: string;
+  agent_id?: string;
+  walletId?: string;
+  wallet_id?: string;
+  programId?: string;
+  program_id?: string;
+  destination?: string;
+  amountSol?: number;
+  amount_sol?: number;
+  intentType?: string;
+  intent_type?: string;
+  decision?: string;
+  riskScore?: number;
+  risk_score?: number;
+  reason?: string;
+  matchedRules?: Array<string | Record<string, unknown>>;
+  matched_rules?: Array<string | Record<string, unknown>>;
+  createdAt?: string;
+  created_at?: string;
+  evaluatedAt?: string;
+  evaluated_at?: string;
 };
 
 type AgentRecord = {
@@ -40,11 +71,14 @@ type AgentRecord = {
   name: string;
   walletAddress: string;
   source: 'created' | 'demo' | 'stats' | 'backend';
+  emergencyPause?: boolean;
 };
 
 type PolicyResult = {
   id?: string;
   policyId?: string;
+  emergencyPause?: boolean;
+  emergency_pause?: boolean;
 };
 
 type EvaluationResult = {
@@ -197,6 +231,47 @@ const normalizeStats = (payload: any): DashboardStats => {
   };
 };
 
+const normalizeAuditLogs = (payload: any): AuditLog[] => {
+  const data = unwrapData(payload) || {};
+  const rows = Array.isArray(data.auditLogs)
+    ? data.auditLogs
+    : Array.isArray(data.audit_logs)
+      ? data.audit_logs
+      : [];
+
+  return rows.map((log: AuditLog) => ({
+    ...log,
+    agentId: log.agentId ?? log.agent_id,
+    transactionRequestId: log.transactionRequestId ?? log.transaction_request_id,
+    auditLogId: log.auditLogId ?? log.audit_log_id ?? log.id,
+    riskScore: Number(log.riskScore ?? log.risk_score ?? 0),
+    matchedRules: log.matchedRules ?? log.matched_rules ?? [],
+    createdAt: log.createdAt ?? log.created_at ?? log.timestamp,
+  }));
+};
+
+const normalizeTransactionRequests = (payload: any): TransactionRequest[] => {
+  const data = unwrapData(payload) || {};
+  const rows = Array.isArray(data.transactionRequests)
+    ? data.transactionRequests
+    : Array.isArray(data.transaction_requests)
+      ? data.transaction_requests
+      : [];
+
+  return rows.map((request: TransactionRequest) => ({
+    ...request,
+    agentId: request.agentId ?? request.agent_id,
+    walletId: request.walletId ?? request.wallet_id,
+    programId: request.programId ?? request.program_id,
+    amountSol: Number(request.amountSol ?? request.amount_sol ?? 0),
+    intentType: request.intentType ?? request.intent_type,
+    riskScore: Number(request.riskScore ?? request.risk_score ?? 0),
+    matchedRules: request.matchedRules ?? request.matched_rules ?? [],
+    createdAt: request.createdAt ?? request.created_at,
+    evaluatedAt: request.evaluatedAt ?? request.evaluated_at,
+  }));
+};
+
 const extractAgents = (payload: any, source: AgentRecord['source']): AgentRecord[] => {
   const data = unwrapData(payload) || {};
   const rows = Array.isArray(data.agents)
@@ -220,6 +295,11 @@ const extractAgents = (payload: any, source: AgentRecord['source']): AgentRecord
         name: String(row.name ?? row.agentName ?? row.agent_name ?? `Agent ${index + 1}`),
         walletAddress: String(row.walletAddress ?? row.wallet_address ?? row.ownerWallet ?? row.address ?? ''),
         source,
+        emergencyPause: typeof row.emergencyPause === 'boolean'
+          ? row.emergencyPause
+          : typeof row.emergency_pause === 'boolean'
+            ? row.emergency_pause
+            : undefined,
       };
     })
     .filter(Boolean) as AgentRecord[];
@@ -272,7 +352,14 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [statsState, setStatsState] = useState<RequestState>('idle');
   const [statsError, setStatsError] = useState('');
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditState, setAuditState] = useState<RequestState>('idle');
+  const [auditError, setAuditError] = useState('');
+  const [transactionHistory, setTransactionHistory] = useState<TransactionRequest[]>([]);
+  const [historyState, setHistoryState] = useState<RequestState>('idle');
+  const [historyError, setHistoryError] = useState('');
   const [knownAgents, setKnownAgents] = useState<AgentRecord[]>([]);
+  const [emergencyPauseByAgent, setEmergencyPauseByAgent] = useState<Record<string, boolean>>({});
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [createdAgentId, setCreatedAgentId] = useState('');
   const [createdPolicyId, setCreatedPolicyId] = useState('');
@@ -283,6 +370,7 @@ const Dashboard: React.FC = () => {
   const [policyState, setPolicyState] = useState<RequestState>('idle');
   const [evaluationState, setEvaluationState] = useState<RequestState>('idle');
   const [seedState, setSeedState] = useState<RequestState>('idle');
+  const [pauseState, setPauseState] = useState<RequestState>('idle');
 
   const [agentForm, setAgentForm] = useState({
     name: 'Treasury Ops Agent',
@@ -311,6 +399,13 @@ const Dashboard: React.FC = () => {
     setToast({ message, type });
     window.setTimeout(() => setToast(null), 4200);
   };
+
+  const setAgentEmergencyPause = useCallback((agentId: string, emergencyPause: boolean) => {
+    setEmergencyPauseByAgent(prev => ({ ...prev, [agentId]: emergencyPause }));
+    setKnownAgents(prev => prev.map(agent => (
+      agent.id === agentId ? { ...agent, emergencyPause } : agent
+    )));
+  }, []);
 
   const invokeFunction = useCallback(async <T,>(slug: string, body?: Record<string, unknown>, method: 'GET' | 'POST' = 'POST') => {
     if (!FUNCTION_BASE) {
@@ -373,7 +468,7 @@ const Dashboard: React.FC = () => {
     return proof;
   }, [wallet.signMessage, walletAddress]);
 
-  const refreshStats = useCallback(async () => {
+  const refreshStats = useCallback(async (proofOverride?: WalletProof) => {
     if (!functionsReady) {
       setStatsState('error');
       setStatsError('Missing VITE_INSFORGE_FUNCTIONS_URL. Backend stats are not connected.');
@@ -383,13 +478,22 @@ const Dashboard: React.FC = () => {
     setStatsState('loading');
     setStatsError('');
     try {
-      const walletProof = await getWalletProof();
+      const walletProof = proofOverride ?? await getWalletProof();
       const data = await invokeFunction<any>('get-dashboard-stats', { walletProof });
       const normalized = normalizeStats(data);
       setStats(normalized);
       const statsAgents = extractAgents(data, 'backend');
       if (statsAgents.length > 0) {
         setKnownAgents(prev => mergeAgents(prev, statsAgents));
+        setEmergencyPauseByAgent(prev => {
+          const next = { ...prev };
+          statsAgents.forEach(agent => {
+            if (typeof agent.emergencyPause === 'boolean') {
+              next[agent.id] = agent.emergencyPause;
+            }
+          });
+          return next;
+        });
       }
       setStatsState('success');
     } catch (error) {
@@ -398,15 +502,63 @@ const Dashboard: React.FC = () => {
     }
   }, [functionsReady, getWalletProof, invokeFunction]);
 
+  const refreshAuditLogs = useCallback(async (proofOverride?: WalletProof) => {
+    if (!functionsReady) {
+      return;
+    }
+
+    setAuditState('loading');
+    setAuditError('');
+    try {
+      const walletProof = proofOverride ?? await getWalletProof();
+      const data = await invokeFunction<any>('list-audit-logs', { walletProof, limit: 25 });
+      setAuditLogs(normalizeAuditLogs(data));
+      setAuditState('success');
+    } catch (error) {
+      setAuditState('error');
+      setAuditError(getErrorMessage(error));
+    }
+  }, [functionsReady, getWalletProof, invokeFunction]);
+
+  const refreshTransactionHistory = useCallback(async (proofOverride?: WalletProof) => {
+    if (!functionsReady) {
+      return;
+    }
+
+    setHistoryState('loading');
+    setHistoryError('');
+    try {
+      const walletProof = proofOverride ?? await getWalletProof();
+      const data = await invokeFunction<any>('list-transaction-requests', { walletProof, limit: 25 });
+      setTransactionHistory(normalizeTransactionRequests(data));
+      setHistoryState('success');
+    } catch (error) {
+      setHistoryState('error');
+      setHistoryError(getErrorMessage(error));
+    }
+  }, [functionsReady, getWalletProof, invokeFunction]);
+
+  const refreshBackendData = useCallback(async (proofOverride?: WalletProof) => {
+    const walletProof = proofOverride ?? await getWalletProof();
+    await Promise.all([
+      refreshStats(walletProof),
+      refreshAuditLogs(walletProof),
+      refreshTransactionHistory(walletProof),
+    ]);
+  }, [getWalletProof, refreshAuditLogs, refreshStats, refreshTransactionHistory]);
+
   useEffect(() => {
     walletProofRef.current = null;
+    setAuditLogs([]);
+    setTransactionHistory([]);
+    setEmergencyPauseByAgent({});
   }, [walletAddress]);
 
   useEffect(() => {
     if (wallet.connected) {
-      refreshStats();
+      refreshBackendData();
     }
-  }, [refreshStats, wallet.connected]);
+  }, [refreshBackendData, wallet.connected]);
 
   useEffect(() => {
     if (createdAgentId && !selectedAgentId) {
@@ -421,6 +573,11 @@ const Dashboard: React.FC = () => {
 
   const agentOptions = knownAgents;
   const selectedAgent = agentOptions.find(agent => agent.id === selectedAgentId);
+  const selectedEmergencyPause = selectedAgentId
+    ? emergencyPauseByAgent[selectedAgentId] ?? selectedAgent?.emergencyPause ?? false
+    : false;
+  const selectedEmergencyPauseKnown = Boolean(selectedAgentId)
+    && (Object.prototype.hasOwnProperty.call(emergencyPauseByAgent, selectedAgentId) || typeof selectedAgent?.emergencyPause === 'boolean');
   const decision = normalizeDecision(evaluation?.decision);
   const matchedRules = evaluation?.matchedPolicyRules ?? evaluation?.matchedRules ?? [];
 
@@ -463,7 +620,7 @@ const Dashboard: React.FC = () => {
       }
       showToast('Demo data seeded from InsForge.', 'success');
       setSeedState('success');
-      await refreshStats();
+      await refreshBackendData(walletProof);
     } catch (error) {
       setSeedState('error');
       showToast(getErrorMessage(error), 'error');
@@ -504,7 +661,7 @@ const Dashboard: React.FC = () => {
       setKnownAgents(prev => mergeAgents(prev, [agent]));
       setAgentState('success');
       showToast(data?.existing ? 'Wallet already registered. Existing agent selected.' : 'Agent registered with InsForge.', data?.existing ? 'info' : 'success');
-      await refreshStats();
+      await refreshBackendData(walletProof);
     } catch (error) {
       setAgentState('error');
       showToast(getErrorMessage(error), 'error');
@@ -539,9 +696,10 @@ const Dashboard: React.FC = () => {
 
       const id = String(data?.policyId ?? data?.id ?? '');
       setCreatedPolicyId(id || 'created');
+      setAgentEmergencyPause(selectedAgentId, Boolean(data?.emergencyPause ?? data?.emergency_pause ?? policyForm.emergencyPaused));
       setPolicyState('success');
       showToast('Policy created through InsForge.', 'success');
-      await refreshStats();
+      await refreshBackendData(walletProof);
     } catch (error) {
       setPolicyState('error');
       showToast(getErrorMessage(error), 'error');
@@ -594,9 +752,34 @@ const Dashboard: React.FC = () => {
       setEvaluation(data);
       setEvaluationState('success');
       showToast('Transaction evaluated by InsForge.', 'success');
-      await refreshStats();
+      await refreshBackendData(walletProof);
     } catch (error) {
       setEvaluationState('error');
+      showToast(getErrorMessage(error), 'error');
+    }
+  };
+
+  const toggleEmergencyPause = async (emergencyPause: boolean) => {
+    if (!selectedAgentId) {
+      showToast('Select an agent before using the kill switch.', 'error');
+      return;
+    }
+
+    setPauseState('loading');
+    try {
+      const walletProof = await getWalletProof();
+      const data = await invokeFunction<any>('toggle-emergency-pause', {
+        agentId: selectedAgentId,
+        emergencyPause,
+        walletProof,
+      });
+      const nextPause = Boolean(data?.emergencyPause ?? data?.emergency_pause ?? emergencyPause);
+      setAgentEmergencyPause(selectedAgentId, nextPause);
+      setPauseState('success');
+      showToast(nextPause ? 'Emergency pause enabled.' : 'Emergency pause disabled.', nextPause ? 'info' : 'success');
+      await refreshBackendData(walletProof);
+    } catch (error) {
+      setPauseState('error');
       showToast(getErrorMessage(error), 'error');
     }
   };
@@ -649,7 +832,7 @@ const Dashboard: React.FC = () => {
               <button className="btn btn-secondary" type="button" onClick={seedDemoData} disabled={!wallet.connected || !functionsReady || seedState === 'loading'}>
                 {!wallet.connected ? 'Connect wallet first' : seedState === 'loading' ? 'Seeding...' : 'Seed demo data'}
               </button>
-              <button className="btn btn-secondary" type="button" onClick={refreshStats} disabled={!functionsReady || statsState === 'loading'}>
+              <button className="btn btn-secondary" type="button" onClick={() => refreshBackendData()} disabled={!functionsReady || statsState === 'loading' || auditState === 'loading' || historyState === 'loading'}>
                 {statsState === 'loading' ? 'Refreshing...' : 'Refresh stats'}
               </button>
             </div>
@@ -660,7 +843,7 @@ const Dashboard: React.FC = () => {
           ) : statsState === 'loading' ? (
             <StatsSkeleton />
           ) : statsState === 'error' ? (
-            <InlineError message={statsError} actionLabel="Retry stats" onAction={refreshStats} />
+            <InlineError message={statsError} actionLabel="Retry stats" onAction={() => refreshBackendData()} />
           ) : (
             <div className="stats-grid">
               <StatTile label="Backend agents" value={stats.agents} />
@@ -810,9 +993,27 @@ const Dashboard: React.FC = () => {
                 />
                 <span>
                   <strong>Emergency pause</strong>
-                  <small>Send the flag if the backend policy object supports it.</small>
+                  <small>Initial kill switch value for the policy you create.</small>
                 </span>
               </label>
+
+              <div className="toggle-row">
+                <input
+                  id="active-emergency-pause"
+                  type="checkbox"
+                  checked={selectedEmergencyPause}
+                  onChange={event => toggleEmergencyPause(event.target.checked)}
+                  disabled={!functionsReady || !selectedAgentId || pauseState === 'loading'}
+                />
+                <label htmlFor="active-emergency-pause">
+                  <strong>Active policy kill switch</strong>
+                  <small>
+                    {selectedAgentId
+                      ? `Current: ${selectedEmergencyPauseKnown ? (selectedEmergencyPause ? 'enabled' : 'disabled') : 'unknown until policy update'}`
+                      : 'Select an agent to toggle emergency pause.'}
+                  </small>
+                </label>
+              </div>
 
               <button className="btn btn-primary btn-full" type="submit" disabled={!functionsReady || !selectedAgentId || policyState === 'loading'}>
                 {policyState === 'loading' ? 'Creating policy...' : 'Create policy'}
@@ -930,19 +1131,70 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
+        <section className="panel" aria-labelledby="history-title">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Transaction history</p>
+              <h2 id="history-title">Recent evaluations</h2>
+            </div>
+            <span className="id-pill">From list-transaction-requests</span>
+          </div>
+
+          {historyState === 'error' ? (
+            <InlineError message={historyError} actionLabel="Retry history" onAction={() => refreshTransactionHistory()} />
+          ) : transactionHistory.length === 0 ? (
+            <div className="empty-state">
+              <strong>No transaction history returned</strong>
+              <p>Run a transaction simulation to create backend transaction request rows for this wallet.</p>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="audit-table">
+                <thead>
+                  <tr>
+                    <th>Decision</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Program</th>
+                    <th>Reason</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactionHistory.map((request, index) => {
+                    const rowDecision = normalizeDecision(request.decision);
+                    return (
+                      <tr key={request.id ?? index}>
+                        <td><span className={`decision-chip ${rowDecision}`}>{rowDecision}</span></td>
+                        <td>{formatNumber(Number(request.amountSol ?? 0), 3)} SOL</td>
+                        <td>{request.intentType ?? 'Not returned'}</td>
+                        <td className="mono">{shorten(request.programId, 8, 6)}</td>
+                        <td>{request.reason || 'No reason returned'}</td>
+                        <td>{request.evaluatedAt ?? request.createdAt ?? 'Not returned'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <section className="panel" aria-labelledby="audit-title">
           <div className="section-header">
             <div>
               <p className="eyebrow">Audit panel</p>
               <h2 id="audit-title">Recent backend audit activity</h2>
             </div>
-            <span className="id-pill">From get-dashboard-stats</span>
+            <span className="id-pill">From list-audit-logs</span>
           </div>
 
-          {stats.recentAuditLogs.length === 0 ? (
+          {auditState === 'error' ? (
+            <InlineError message={auditError} actionLabel="Retry audit logs" onAction={() => refreshAuditLogs()} />
+          ) : auditLogs.length === 0 ? (
             <div className="empty-state">
               <strong>No audit logs returned</strong>
-              <p>Run a transaction simulation or seed demo data. This panel only shows `recentAuditLogs` from the backend.</p>
+              <p>Run a transaction simulation or use the kill switch to create backend audit rows for this wallet.</p>
             </div>
           ) : (
             <div className="table-wrap">
@@ -953,12 +1205,12 @@ const Dashboard: React.FC = () => {
                     <th>Risk</th>
                     <th>Reason</th>
                     <th>Audit ID</th>
-                    <th>Alert ID</th>
+                    <th>Request ID</th>
                     <th>Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.recentAuditLogs.map((log, index) => {
+                  {auditLogs.map((log, index) => {
                     const rowDecision = normalizeDecision(log.decision);
                     return (
                       <tr key={log.id ?? log.auditLogId ?? index}>
@@ -966,7 +1218,7 @@ const Dashboard: React.FC = () => {
                         <td>{Number(log.riskScore ?? 0)}</td>
                         <td>{log.reason || log.transactionType || 'No reason returned'}</td>
                         <td className="mono">{shorten(log.auditLogId ?? log.id)}</td>
-                        <td className="mono">{shorten(log.alertId)}</td>
+                        <td className="mono">{shorten(log.transactionRequestId)}</td>
                         <td>{log.createdAt ?? log.timestamp ?? 'Not returned'}</td>
                       </tr>
                     );
@@ -989,7 +1241,15 @@ const Dashboard: React.FC = () => {
 
 const mergeAgents = (current: AgentRecord[], next: AgentRecord[]) => {
   const byId = new Map<string, AgentRecord>();
-  [...current, ...next].forEach(agent => byId.set(agent.id, agent));
+  current.forEach(agent => byId.set(agent.id, agent));
+  next.forEach(agent => {
+    const existing = byId.get(agent.id);
+    byId.set(agent.id, {
+      ...existing,
+      ...agent,
+      emergencyPause: agent.emergencyPause ?? existing?.emergencyPause,
+    });
+  });
   return Array.from(byId.values());
 };
 

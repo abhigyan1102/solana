@@ -1,8 +1,10 @@
 # SolanaGuard
 
-SolanaGuard is a hackathon MVP for an on-chain risk enforcement layer protecting AI agents that use Solana wallets.
+SolanaGuard is a hackathon MVP for a policy firewall that protects AI agents using Solana wallets. The current app lets a wallet owner register an agent, create a risk policy, evaluate transaction intents, inspect real backend history, and use an emergency pause kill switch.
 
-This phase is an InsForge-powered frontend demo. It does not include Anchor smart contract code, real wallet connection, auth, payments, or storage/reporting.
+Current demo scope: **InsForge-powered policy engine now. Anchor enforcement next.**
+
+This phase does not include Anchor smart contract code, Storage, Payments, Analytics, or Compute.
 
 ## Backend
 
@@ -13,28 +15,35 @@ The frontend calls deployed InsForge Edge Functions:
 - `create-policy`
 - `evaluate-transaction`
 - `get-dashboard-stats`
+- `list-audit-logs`
+- `list-transaction-requests`
+- `toggle-emergency-pause`
 
 No API keys are required in the browser. The function runtime keeps server-side InsForge secrets in the backend.
 
+Wallet-scoped calls require a signed wallet proof. Direct RPC execution for wallet-scoped `SECURITY DEFINER` functions is revoked from `PUBLIC`, `anon`, and `authenticated`; Edge Functions call the backend through the `project_admin` route.
+
 ## Environment
 
-Copy the example file and set the function host:
+Create `app/.env` and set the function host:
 
 ```bash
-cp .env.example .env
+cd app
+printf 'VITE_INSFORGE_FUNCTIONS_URL=https://mhzv65qi.ap-southeast.insforge.app/functions\n' > .env
 ```
 
-`.env` should contain:
+Required variable:
 
 ```bash
-VITE_INSFORGE_FUNCTIONS_URL=https://mhzv65qi.functions.insforge.app
+VITE_INSFORGE_FUNCTIONS_URL=https://mhzv65qi.ap-southeast.insforge.app/functions
 ```
 
-`.env`, `.env.local`, and `.env*.local` are ignored by Git.
+`.env`, `.env.local`, `.env*.local`, `.insforge`, `node_modules`, and `dist` are ignored by Git.
 
 ## Run
 
 ```bash
+cd app
 npm install
 npm run dev
 ```
@@ -44,16 +53,28 @@ The Vite dev server defaults to `http://127.0.0.1:5173/`. If that port is busy, 
 ## Build
 
 ```bash
+cd app
 npm run build
 ```
 
 ## Demo Flow
 
 1. Open the app.
-2. Use `Load demo data` to call `seed-demo-data`.
-3. Review dashboard metrics from `get-dashboard-stats`.
-4. Create an agent from the Agent Registry.
-5. Create a policy from the Policy Builder.
-6. Run simulator presets for safe, warning, blocked, unknown program, and max amount cases.
-7. Inspect the result panel for `decision`, `riskScore`, `reason`, `matchedPolicyRules`, `auditLogId`, and `alertId`.
-8. Review recent backend audit activity in the Audit Trail panel.
+2. Connect a Phantom or Backpack wallet.
+3. Sign the wallet proof when prompted.
+4. Seed demo data.
+5. Create an agent from the Agent Registry.
+6. Create a policy from the Policy Builder.
+7. Run safe, warning, and blocked transaction presets.
+8. Review real transaction history and audit logs from the backend.
+9. Enable the kill switch.
+10. Run the safe transaction again and verify it returns `blocked` with risk score `100`.
+11. Disable the kill switch and run the safe transaction again.
+
+## Security Notes
+
+- Wallet proof is required for wallet-scoped Edge Function calls.
+- The signed message binds the wallet address and timestamp.
+- Wallet proof timestamps expire after five minutes and allow only small future clock skew.
+- Direct RPC access is revoked for wallet-scoped `SECURITY DEFINER` functions.
+- Edge Functions verify wallet proof first, then use the server-side `project_admin` route for RPC execution.
