@@ -98,9 +98,6 @@ REVOKE EXECUTE ON FUNCTION public.create_agent(TEXT, TEXT, TEXT) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.create_agent(TEXT, TEXT, TEXT) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.create_agent(TEXT, TEXT, TEXT) TO project_admin;
 
-REVOKE EXECUTE ON FUNCTION public.get_dashboard_stats(UUID) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_dashboard_stats(UUID) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.get_dashboard_stats(UUID) FROM authenticated;
 DROP FUNCTION IF EXISTS public.get_dashboard_stats(UUID);
 
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats(

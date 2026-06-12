@@ -240,6 +240,14 @@ const formatRule = (rule: string | Record<string, unknown>) => {
   return `${name}${result}${programId}`;
 };
 
+const parseNonNegativeNumber = (value: string, label: string) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${label} must be a finite, non-negative number.`);
+  }
+  return parsed;
+};
+
 const Dashboard: React.FC = () => {
   const wallet = useWallet();
   const walletAddress = wallet.publicKey?.toBase58() || '';
@@ -357,6 +365,14 @@ const Dashboard: React.FC = () => {
   const matchedRules = evaluation?.matchedPolicyRules ?? evaluation?.matchedRules ?? [];
 
   const handlePresetChange = (presetId: string) => {
+    if (presetId === 'custom') {
+      setTransactionForm(prev => ({
+        ...prev,
+        presetId,
+      }));
+      return;
+    }
+
     const preset = presets.find(item => item.id === presetId);
     if (!preset) return;
     setTransactionForm(prev => ({
@@ -437,14 +453,18 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    setPolicyState('loading');
     try {
+      const maxTransactionAmount = parseNonNegativeNumber(policyForm.maxTransactionAmount, 'Max transaction amount');
+      const dailySpendingLimit = parseNonNegativeNumber(policyForm.dailySpendingLimit, 'Daily spending limit');
+      const manualApprovalThreshold = parseNonNegativeNumber(policyForm.manualApprovalThreshold, 'Manual approval threshold');
+
+      setPolicyState('loading');
       const data = await invokeFunction<PolicyResult>('create-policy', {
         agentId: selectedAgentId,
         walletAddress,
-        maxTransactionAmount: Number(policyForm.maxTransactionAmount),
-        dailySpendingLimit: Number(policyForm.dailySpendingLimit),
-        manualApprovalThreshold: Number(policyForm.manualApprovalThreshold),
+        maxTransactionAmount,
+        dailySpendingLimit,
+        manualApprovalThreshold,
         allowedProgramIds: splitLines(policyForm.allowedProgramIds),
         blockedProgramIds: splitLines(policyForm.blockedProgramIds),
         emergencyPaused: policyForm.emergencyPaused,
@@ -469,14 +489,15 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    setEvaluationState('loading');
-    setEvaluation(null);
     try {
-      const amount = Number(transactionForm.amount);
+      const amount = parseNonNegativeNumber(transactionForm.amount, 'Transaction amount');
       const programId = transactionForm.programId.trim();
       const recipient = transactionForm.recipient.trim();
       const transactionType = transactionForm.transactionType.trim();
       const memo = transactionForm.memo.trim();
+
+      setEvaluationState('loading');
+      setEvaluation(null);
       const data = await invokeFunction<EvaluationResult>('evaluate-transaction', {
         agentId: selectedAgentId,
         walletAddress,
@@ -679,7 +700,7 @@ const Dashboard: React.FC = () => {
                 </Field>
               </div>
 
-              <Field label="Manual approval threshold" htmlFor="manual-threshold" required hint="Risk score from 0 to 1.">
+              <Field label="Manual approval threshold" htmlFor="manual-threshold" required hint="SOL amount above which manual approval is required.">
                 <input
                   id="manual-threshold"
                   className="input"

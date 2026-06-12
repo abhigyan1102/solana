@@ -42,7 +42,8 @@ const routes: Record<string, Route> = {
   'get-dashboard-stats': {
     rpc: 'get_dashboard_stats',
     args: (body, url) => ({
-      p_agent_id: body.agentId ?? url.searchParams.get('agentId')
+      p_agent_id: body.agentId ?? url.searchParams.get('agentId'),
+      p_wallet_address: body.walletAddress ?? url.searchParams.get('walletAddress')
     })
   }
 };
