@@ -4,6 +4,9 @@
 .env
 .env.local
 .env*.local
+app/.env
+app/.env.local
+.DS_Store
 node_modules
 dist
 .agent
