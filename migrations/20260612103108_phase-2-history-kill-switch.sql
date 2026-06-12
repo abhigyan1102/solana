@@ -118,6 +118,10 @@ BEGIN
     RAISE EXCEPTION 'walletAddress is required';
   END IF;
 
+  IF p_emergency_pause IS NULL THEN
+    RAISE EXCEPTION 'emergencyPause is required';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1
     FROM public.wallets w
@@ -140,7 +144,7 @@ BEGIN
   END IF;
 
   UPDATE public.policies
-  SET emergency_pause = COALESCE(p_emergency_pause, false),
+  SET emergency_pause = p_emergency_pause,
       updated_at = NOW()
   WHERE id = v_policy.id
   RETURNING * INTO v_policy;

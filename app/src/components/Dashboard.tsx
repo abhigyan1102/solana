@@ -130,6 +130,16 @@ const emptyStats: DashboardStats = {
   recentAuditLogs: [],
 };
 
+const createEmptyStats = (): DashboardStats => ({
+  agents: 0,
+  protectedWallets: 0,
+  transactionsChecked: 0,
+  blockedTransactions: 0,
+  openAlerts: 0,
+  averageRiskScore: 0,
+  recentAuditLogs: [],
+});
+
 const presets: Preset[] = [
   {
     id: 'safe-transfer',
@@ -539,19 +549,43 @@ const Dashboard: React.FC = () => {
   }, [functionsReady, getWalletProof, invokeFunction]);
 
   const refreshBackendData = useCallback(async (proofOverride?: WalletProof) => {
+    if (!functionsReady) {
+      setStatsState('error');
+      setStatsError('Missing VITE_INSFORGE_FUNCTIONS_URL. Backend stats are not connected.');
+      setAuditState('idle');
+      setHistoryState('idle');
+      return;
+    }
+
     const walletProof = proofOverride ?? await getWalletProof();
     await Promise.all([
       refreshStats(walletProof),
       refreshAuditLogs(walletProof),
       refreshTransactionHistory(walletProof),
     ]);
-  }, [getWalletProof, refreshAuditLogs, refreshStats, refreshTransactionHistory]);
+  }, [functionsReady, getWalletProof, refreshAuditLogs, refreshStats, refreshTransactionHistory]);
 
   useEffect(() => {
     walletProofRef.current = null;
+    setStats(createEmptyStats());
+    setStatsState(walletAddress && FUNCTION_BASE ? 'loading' : 'idle');
+    setStatsError('');
     setAuditLogs([]);
+    setAuditState('idle');
+    setAuditError('');
     setTransactionHistory([]);
+    setHistoryState('idle');
+    setHistoryError('');
     setEmergencyPauseByAgent({});
+    setKnownAgents([]);
+    setSelectedAgentId('');
+    setCreatedAgentId('');
+    setCreatedPolicyId('');
+    setEvaluation(null);
+    setAgentState('idle');
+    setPolicyState('idle');
+    setEvaluationState('idle');
+    setPauseState('idle');
   }, [walletAddress]);
 
   useEffect(() => {
