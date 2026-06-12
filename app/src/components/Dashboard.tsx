@@ -1,4 +1,4 @@
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
@@ -70,6 +70,13 @@ type Preset = {
   programId: string;
   recipient: string;
   transactionType: string;
+};
+
+type WalletProof = {
+  walletAddress: string;
+  message: string;
+  signature: string;
+  timestamp: number;
 };
 
 const FUNCTION_BASE = import.meta.env.VITE_INSFORGE_FUNCTIONS_URL as string | undefined;
@@ -248,10 +255,19 @@ const parseNonNegativeNumber = (value: string, label: string) => {
   return parsed;
 };
 
+const bytesToBase64 = (bytes: Uint8Array) => {
+  let binary = '';
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+  return window.btoa(binary);
+};
+
 const Dashboard: React.FC = () => {
   const wallet = useWallet();
   const walletAddress = wallet.publicKey?.toBase58() || '';
   const functionsReady = Boolean(FUNCTION_BASE);
+  const walletProofRef = useRef<WalletProof | null>(null);
 
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [statsState, setStatsState] = useState<RequestState>('idle');
@@ -308,15 +324,54 @@ const Dashboard: React.FC = () => {
     });
 
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : {};
+    let payload: any = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { message: text };
+      }
+    }
 
     if (!response.ok) {
-      const message = payload?.error?.message ?? payload?.error ?? payload?.message ?? `${slug} returned ${response.status}`;
+      const message = payload?.error?.message ?? payload?.error ?? payload?.message ?? `${slug} returned ${response.status}: ${text || response.statusText}`;
       throw new Error(String(message));
     }
 
     return unwrapData(payload) as T;
   }, []);
+
+  const getWalletProof = useCallback(async () => {
+    if (!walletAddress) {
+      throw new Error('Connect a Solana wallet before accessing wallet-scoped data.');
+    }
+
+    if (!wallet.signMessage) {
+      throw new Error('This wallet does not support message signing. Use Backpack or Phantom.');
+    }
+
+    const cached = walletProofRef.current;
+    if (cached?.walletAddress === walletAddress && Date.now() - cached.timestamp < 4 * 60 * 1000) {
+      return cached;
+    }
+
+    const timestamp = Date.now();
+    const message = [
+      'SolanaGuard wallet access',
+      `Wallet: ${walletAddress}`,
+      `Timestamp: ${timestamp}`
+    ].join('\n');
+    const signature = await wallet.signMessage(new TextEncoder().encode(message));
+    const proof = {
+      walletAddress,
+      message,
+      signature: bytesToBase64(signature),
+      timestamp
+    };
+
+    walletProofRef.current = proof;
+    return proof;
+  }, [wallet.signMessage, walletAddress]);
 
   const refreshStats = useCallback(async () => {
     if (!functionsReady) {
@@ -328,7 +383,8 @@ const Dashboard: React.FC = () => {
     setStatsState('loading');
     setStatsError('');
     try {
-      const data = await invokeFunction<any>('get-dashboard-stats', { walletAddress });
+      const walletProof = await getWalletProof();
+      const data = await invokeFunction<any>('get-dashboard-stats', { walletProof });
       const normalized = normalizeStats(data);
       setStats(normalized);
       const statsAgents = extractAgents(data, 'backend');
@@ -340,7 +396,11 @@ const Dashboard: React.FC = () => {
       setStatsState('error');
       setStatsError(getErrorMessage(error));
     }
-  }, [functionsReady, invokeFunction, walletAddress]);
+  }, [functionsReady, getWalletProof, invokeFunction]);
+
+  useEffect(() => {
+    walletProofRef.current = null;
+  }, [walletAddress]);
 
   useEffect(() => {
     if (wallet.connected) {
@@ -389,7 +449,7 @@ const Dashboard: React.FC = () => {
   const seedDemoData = async () => {
     setSeedState('loading');
     try {
-      const data = await invokeFunction<any>('seed-demo-data', { walletAddress });
+      const data = await invokeFunction<any>('seed-demo-data');
       const demoAgents = extractAgents(data, 'demo');
       if (demoAgents.length > 0) {
         setKnownAgents(prev => mergeAgents(prev, demoAgents));
@@ -414,12 +474,12 @@ const Dashboard: React.FC = () => {
 
     setAgentState('loading');
     try {
+      const walletProof = await getWalletProof();
       const data = await invokeFunction<any>('create-agent', {
         name: agentForm.name,
         agentName: agentForm.name,
         description: agentForm.description,
-        walletAddress,
-        ownerWallet: walletAddress,
+        walletProof,
         cluster: 'devnet',
       });
 
@@ -457,11 +517,12 @@ const Dashboard: React.FC = () => {
       const maxTransactionAmount = parseNonNegativeNumber(policyForm.maxTransactionAmount, 'Max transaction amount');
       const dailySpendingLimit = parseNonNegativeNumber(policyForm.dailySpendingLimit, 'Daily spending limit');
       const manualApprovalThreshold = parseNonNegativeNumber(policyForm.manualApprovalThreshold, 'Manual approval threshold');
+      const walletProof = await getWalletProof();
 
       setPolicyState('loading');
       const data = await invokeFunction<PolicyResult>('create-policy', {
         agentId: selectedAgentId,
-        walletAddress,
+        walletProof,
         maxTransactionAmount,
         dailySpendingLimit,
         manualApprovalThreshold,
@@ -495,12 +556,13 @@ const Dashboard: React.FC = () => {
       const recipient = transactionForm.recipient.trim();
       const transactionType = transactionForm.transactionType.trim();
       const memo = transactionForm.memo.trim();
+      const walletProof = await getWalletProof();
 
       setEvaluationState('loading');
       setEvaluation(null);
       const data = await invokeFunction<EvaluationResult>('evaluate-transaction', {
         agentId: selectedAgentId,
-        walletAddress,
+        walletProof,
         amount,
         amountSol: amount,
         programId,
