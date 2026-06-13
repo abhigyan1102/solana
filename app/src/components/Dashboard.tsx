@@ -243,11 +243,13 @@ const normalizeStats = (payload: any): DashboardStats => {
 
 const normalizeAuditLogs = (payload: any): AuditLog[] => {
   const data = unwrapData(payload) || {};
-  const rows = Array.isArray(data.auditLogs)
-    ? data.auditLogs
-    : Array.isArray(data.audit_logs)
-      ? data.audit_logs
-      : [];
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(data.auditLogs)
+      ? data.auditLogs
+      : Array.isArray(data.audit_logs)
+        ? data.audit_logs
+        : [];
 
   return rows.map((log: AuditLog) => ({
     ...log,
@@ -262,11 +264,13 @@ const normalizeAuditLogs = (payload: any): AuditLog[] => {
 
 const normalizeTransactionRequests = (payload: any): TransactionRequest[] => {
   const data = unwrapData(payload) || {};
-  const rows = Array.isArray(data.transactionRequests)
-    ? data.transactionRequests
-    : Array.isArray(data.transaction_requests)
-      ? data.transaction_requests
-      : [];
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(data.transactionRequests)
+      ? data.transactionRequests
+      : Array.isArray(data.transaction_requests)
+        ? data.transaction_requests
+        : [];
 
   return rows.map((request: TransactionRequest) => ({
     ...request,
@@ -476,6 +480,34 @@ const Dashboard: React.FC = () => {
 
     walletProofRef.current = proof;
     return proof;
+  }, [wallet.signMessage, walletAddress]);
+
+  const getToggleEmergencyPauseProof = useCallback(async (agentId: string, emergencyPause: boolean) => {
+    if (!walletAddress) {
+      throw new Error('Connect a Solana wallet before using the kill switch.');
+    }
+
+    if (!wallet.signMessage) {
+      throw new Error('This wallet does not support message signing. Use Backpack or Phantom.');
+    }
+
+    const timestamp = Date.now();
+    const message = [
+      'SolanaGuard action authorization',
+      `Wallet: ${walletAddress}`,
+      `Timestamp: ${timestamp}`,
+      'Action: toggle-emergency-pause',
+      `Agent ID: ${agentId}`,
+      `Emergency Pause: ${emergencyPause ? 'true' : 'false'}`
+    ].join('\n');
+    const signature = await wallet.signMessage(new TextEncoder().encode(message));
+
+    return {
+      walletAddress,
+      message,
+      signature: bytesToBase64(signature),
+      timestamp
+    };
   }, [wallet.signMessage, walletAddress]);
 
   const refreshStats = useCallback(async (proofOverride?: WalletProof) => {
@@ -801,7 +833,7 @@ const Dashboard: React.FC = () => {
 
     setPauseState('loading');
     try {
-      const walletProof = await getWalletProof();
+      const walletProof = await getToggleEmergencyPauseProof(selectedAgentId, emergencyPause);
       const data = await invokeFunction<any>('toggle-emergency-pause', {
         agentId: selectedAgentId,
         emergencyPause,
@@ -811,7 +843,7 @@ const Dashboard: React.FC = () => {
       setAgentEmergencyPause(selectedAgentId, nextPause);
       setPauseState('success');
       showToast(nextPause ? 'Emergency pause enabled.' : 'Emergency pause disabled.', nextPause ? 'info' : 'success');
-      await refreshBackendData(walletProof);
+      await refreshBackendData();
     } catch (error) {
       setPauseState('error');
       showToast(getErrorMessage(error), 'error');
@@ -1176,6 +1208,8 @@ const Dashboard: React.FC = () => {
 
           {historyState === 'error' ? (
             <InlineError message={historyError} actionLabel="Retry history" onAction={() => refreshTransactionHistory()} />
+          ) : historyState === 'loading' ? (
+            <LoadingPanel label="Loading transaction history" />
           ) : transactionHistory.length === 0 ? (
             <div className="empty-state">
               <strong>No transaction history returned</strong>
@@ -1225,6 +1259,8 @@ const Dashboard: React.FC = () => {
 
           {auditState === 'error' ? (
             <InlineError message={auditError} actionLabel="Retry audit logs" onAction={() => refreshAuditLogs()} />
+          ) : auditState === 'loading' ? (
+            <LoadingPanel label="Loading audit logs" />
           ) : auditLogs.length === 0 ? (
             <div className="empty-state">
               <strong>No audit logs returned</strong>
@@ -1402,6 +1438,13 @@ const InlineError: React.FC<{ message: string; actionLabel: string; onAction: ()
     <strong>Backend request failed</strong>
     <p>{message}</p>
     <button className="btn btn-secondary" type="button" onClick={onAction}>{actionLabel}</button>
+  </div>
+);
+
+const LoadingPanel: React.FC<{ label: string }> = ({ label }) => (
+  <div className="empty-state" aria-busy="true">
+    <strong>{label}</strong>
+    <p>Waiting for the InsForge backend.</p>
   </div>
 );
 

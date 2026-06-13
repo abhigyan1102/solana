@@ -13,6 +13,7 @@ type JsonRecord = Record<string, unknown>;
 type Route = {
   rpc: string;
   requiresWalletProof?: boolean;
+  proofMode?: 'generic' | 'toggle-emergency-pause';
   args: (body: JsonRecord, url: URL) => JsonRecord;
 };
 
@@ -88,6 +89,7 @@ const routes: Record<string, Route> = {
   'toggle-emergency-pause': {
     rpc: 'toggle_emergency_pause',
     requiresWalletProof: true,
+    proofMode: 'toggle-emergency-pause',
     args: (body) => ({
       p_agent_id: body.agentId,
       p_emergency_pause: body.emergencyPause,
@@ -163,6 +165,25 @@ function parseWalletProof(value: unknown): WalletProof {
   return parsed;
 }
 
+function verifyWalletSignature(proof: WalletProof): string {
+  try {
+    const publicKey = new PublicKey(proof.walletAddress);
+    const messageBytes = new TextEncoder().encode(proof.message);
+    const signatureBytes = base64ToBytes(proof.signature);
+
+    if (!nacl.sign.detached.verify(messageBytes, signatureBytes, publicKey.toBytes())) {
+      throw new HttpError('walletProof signature is invalid.', 401);
+    }
+  } catch (error) {
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    throw new HttpError('walletProof could not be verified.', 401);
+  }
+
+  return proof.walletAddress;
+}
+
 function verifyWalletProof(value: unknown): string {
   const proof = parseWalletProof(value);
   const now = Date.now();
@@ -187,22 +208,60 @@ function verifyWalletProof(value: unknown): string {
     throw new HttpError('walletProof message does not match the requested wallet.', 401);
   }
 
-  try {
-    const publicKey = new PublicKey(proof.walletAddress);
-    const messageBytes = new TextEncoder().encode(proof.message);
-    const signatureBytes = base64ToBytes(proof.signature);
+  return verifyWalletSignature(proof);
+}
 
-    if (!nacl.sign.detached.verify(messageBytes, signatureBytes, publicKey.toBytes())) {
-      throw new HttpError('walletProof signature is invalid.', 401);
-    }
-  } catch (error) {
-    if (error instanceof HttpError) {
-      throw error;
-    }
-    throw new HttpError('walletProof could not be verified.', 401);
+// A persisted one-time nonce would require new server-side nonce storage; this
+// PR keeps the write route narrowly action-bound while preserving TTL/skew checks.
+function verifyToggleEmergencyPauseProof(value: unknown, body: JsonRecord): string {
+  const proof = parseWalletProof(value);
+  const now = Date.now();
+  const agentId = String(body.agentId ?? '');
+
+  if (!agentId) {
+    throw new HttpError('agentId is required for toggle-emergency-pause walletProof.', 401);
   }
 
-  return proof.walletAddress;
+  if (typeof body.emergencyPause !== 'boolean') {
+    throw new HttpError('emergencyPause is required for toggle-emergency-pause walletProof.', 401);
+  }
+
+  if (proof.timestamp > now + WALLET_PROOF_MAX_FUTURE_SKEW_MS) {
+    throw new HttpError('walletProof timestamp is too far in the future. Please sign a fresh wallet message.', 401);
+  }
+
+  const age = now - proof.timestamp;
+
+  if (age > WALLET_PROOF_TTL_MS) {
+    throw new HttpError('walletProof has expired. Please sign a fresh wallet message.', 401);
+  }
+
+  const expectedMessage = [
+    'SolanaGuard action authorization',
+    `Wallet: ${proof.walletAddress}`,
+    `Timestamp: ${proof.timestamp}`,
+    'Action: toggle-emergency-pause',
+    `Agent ID: ${agentId}`,
+    `Emergency Pause: ${body.emergencyPause ? 'true' : 'false'}`
+  ].join('\n');
+
+  if (proof.message !== expectedMessage) {
+    throw new HttpError('walletProof message does not authorize this emergency pause action.', 401);
+  }
+
+  return verifyWalletSignature(proof);
+}
+
+function verifyRouteWalletProof(route: Route, body: JsonRecord): string | undefined {
+  if (!route.requiresWalletProof) {
+    return undefined;
+  }
+
+  if (route.proofMode === 'toggle-emergency-pause') {
+    return verifyToggleEmergencyPauseProof(body.walletProof, body);
+  }
+
+  return verifyWalletProof(body.walletProof);
 }
 
 function getRouteSlug(url: URL): string {
@@ -232,9 +291,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const body = await readJson(req);
-    const verifiedWalletAddress = route.requiresWalletProof
-      ? verifyWalletProof(body.walletProof)
-      : undefined;
+    const verifiedWalletAddress = verifyRouteWalletProof(route, body);
     const rpcBody = verifiedWalletAddress
       ? { ...body, walletAddress: verifiedWalletAddress }
       : body;
