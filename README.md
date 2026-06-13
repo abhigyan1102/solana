@@ -60,7 +60,7 @@ npm run build
 ## Demo Flow
 
 1. Open the app.
-2. Connect a Phantom or Backpack wallet.
+2. Connect a Phantom wallet.
 3. Sign the wallet proof when prompted.
 4. Seed demo data.
 5. Create an agent from the Agent Registry.

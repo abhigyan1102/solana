@@ -114,6 +114,7 @@ type WalletProof = {
 };
 
 const FUNCTION_BASE = import.meta.env.VITE_INSFORGE_FUNCTIONS_URL as string | undefined;
+const WALLET_SIGNATURE_ERROR = 'Wallet signature was cancelled or could not be completed.';
 
 const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 const JUPITER_PROGRAM_ID = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
@@ -589,12 +590,34 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    const walletProof = proofOverride ?? await getWalletProof();
-    await Promise.all([
-      refreshStats(walletProof),
-      refreshAuditLogs(walletProof),
-      refreshTransactionHistory(walletProof),
-    ]);
+    let walletProof: WalletProof;
+    try {
+      walletProof = proofOverride ?? await getWalletProof();
+    } catch {
+      setStatsState('error');
+      setStatsError(WALLET_SIGNATURE_ERROR);
+      setAuditState('error');
+      setAuditError(WALLET_SIGNATURE_ERROR);
+      setHistoryState('error');
+      setHistoryError(WALLET_SIGNATURE_ERROR);
+      return;
+    }
+
+    try {
+      await Promise.all([
+        refreshStats(walletProof),
+        refreshAuditLogs(walletProof),
+        refreshTransactionHistory(walletProof),
+      ]);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setStatsState('error');
+      setStatsError(message);
+      setAuditState('error');
+      setAuditError(message);
+      setHistoryState('error');
+      setHistoryError(message);
+    }
   }, [functionsReady, getWalletProof, refreshAuditLogs, refreshStats, refreshTransactionHistory]);
 
   useEffect(() => {
@@ -622,7 +645,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (wallet.connected) {
-      refreshBackendData();
+      refreshBackendData().catch(() => undefined);
     }
   }, [refreshBackendData, wallet.connected]);
 
