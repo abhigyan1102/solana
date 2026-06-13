@@ -620,6 +620,17 @@ const Dashboard: React.FC = () => {
     }
   }, [functionsReady, getWalletProof, refreshAuditLogs, refreshStats, refreshTransactionHistory]);
 
+  const refreshBackendDataSafely = useCallback(() => {
+    void refreshBackendData().catch(() => {
+      setStatsState('error');
+      setStatsError(WALLET_SIGNATURE_ERROR);
+      setAuditState('error');
+      setAuditError(WALLET_SIGNATURE_ERROR);
+      setHistoryState('error');
+      setHistoryError(WALLET_SIGNATURE_ERROR);
+    });
+  }, [refreshBackendData]);
+
   useEffect(() => {
     walletProofRef.current = null;
     setStats(createEmptyStats());
@@ -645,9 +656,9 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (wallet.connected) {
-      refreshBackendData().catch(() => undefined);
+      refreshBackendDataSafely();
     }
-  }, [refreshBackendData, wallet.connected]);
+  }, [refreshBackendDataSafely, wallet.connected]);
 
   useEffect(() => {
     if (createdAgentId && !selectedAgentId) {
@@ -921,7 +932,7 @@ const Dashboard: React.FC = () => {
               <button className="btn btn-secondary" type="button" onClick={seedDemoData} disabled={!wallet.connected || !functionsReady || seedState === 'loading'}>
                 {!wallet.connected ? 'Connect wallet first' : seedState === 'loading' ? 'Seeding...' : 'Seed demo data'}
               </button>
-              <button className="btn btn-secondary" type="button" onClick={() => refreshBackendData()} disabled={!functionsReady || statsState === 'loading' || auditState === 'loading' || historyState === 'loading'}>
+              <button className="btn btn-secondary" type="button" onClick={refreshBackendDataSafely} disabled={!functionsReady || statsState === 'loading' || auditState === 'loading' || historyState === 'loading'}>
                 {statsState === 'loading' ? 'Refreshing...' : 'Refresh stats'}
               </button>
             </div>
@@ -932,7 +943,7 @@ const Dashboard: React.FC = () => {
           ) : statsState === 'loading' ? (
             <StatsSkeleton />
           ) : statsState === 'error' ? (
-            <InlineError message={statsError} actionLabel="Retry stats" onAction={() => refreshBackendData()} />
+            <InlineError message={statsError} actionLabel="Retry stats" onAction={refreshBackendDataSafely} />
           ) : (
             <div className="stats-grid">
               <StatTile label="Backend agents" value={stats.agents} />
