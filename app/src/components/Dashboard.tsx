@@ -1231,7 +1231,7 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="panel" aria-labelledby="history-title">
+        <section className="panel history-panel" aria-labelledby="history-title">
           <div className="section-header">
             <div>
               <p className="eyebrow">Transaction history</p>
