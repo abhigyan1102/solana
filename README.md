@@ -1,6 +1,6 @@
 # SolanaGuard
 
-**Demo: <LIVE_URL_PENDING>**
+**Demo: https://solanaguard.vercel.app**
 
 SolanaGuard is a hackathon MVP for a policy firewall that protects AI agents using Solana wallets. The current app lets a wallet owner register an agent, create a risk policy, evaluate transaction intents, inspect real backend history, and use an emergency pause kill switch.
 

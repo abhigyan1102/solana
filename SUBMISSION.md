@@ -36,7 +36,7 @@ Current scope is policy simulation and enforcement decisions plus real backend h
 **Live demo URL**
 
 ```
-<LIVE_URL_PENDING>
+https://solanaguard.vercel.app
 ```
 
 **GitHub repo URL**
