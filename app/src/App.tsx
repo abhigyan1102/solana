@@ -9,6 +9,7 @@ import {
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { clusterApiUrl } from '@solana/web3.js';
 import Dashboard from './components/Dashboard';
+import { Analytics } from '@vercel/analytics/react';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -23,13 +24,17 @@ const App: FC = () => {
   const connectionConfig = useMemo(() => ({ commitment: 'confirmed' as const }), []);
 
   return (
-    <SolanaConnectionProvider endpoint={endpoint} config={connectionConfig}>
-      <WalletProvider wallets={configuredWallets} autoConnect>
-        <WalletModalProvider>
-          <Dashboard />
-        </WalletModalProvider>
-      </WalletProvider>
-    </SolanaConnectionProvider>
+    <>
+      <SolanaConnectionProvider endpoint={endpoint} config={connectionConfig}>
+        <WalletProvider wallets={configuredWallets} autoConnect>
+          <WalletModalProvider>
+            <Dashboard />
+          </WalletModalProvider>
+        </WalletProvider>
+      </SolanaConnectionProvider>
+
+      <Analytics />
+    </>
   );
 };
 

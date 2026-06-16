@@ -16,6 +16,7 @@
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/web3.js": "^1.95.0",
+    "@vercel/analytics": "^2.0.1",
     "bn.js": "^5.2.1",
     "buffer": "^6.0.3",
     "gsap": "^3.15.0",
