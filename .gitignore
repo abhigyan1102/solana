@@ -9,6 +9,12 @@ app/.env.local
 .DS_Store
 node_modules
 dist
+
+# Anchor / Solana on-chain build artifacts
+.anchor
+target
+test-ledger
+**/*.rs.bk
 .agent
 .agents
 .augment
