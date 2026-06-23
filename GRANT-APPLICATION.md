@@ -44,7 +44,9 @@ Requested amount: **7,500 USDG**
 **Proof of Work**
 > - Live product: https://solanaguard.vercel.app
 > - Source (open-source): https://github.com/abhigyan1102/solana
-> - On-chain enforcement (in progress): `programs/solana_guard` Anchor program — `register_agent`, `set_policy`, `update_policy`, `toggle_agent`, `pause_agent`, `unpause_agent`, `validate_and_execute` with on-chain policy checks (per-tx limit, rolling daily limit, protocol allowlist, kill switch). Builds to BPF via `anchor build` and passes 11 Rust tests (10 unit + 1 LiteSVM integration that **rejects an over-limit transaction on-chain**). Not yet deployed to devnet/mainnet — that is milestone M1.
+> - On-chain enforcement (live on devnet): `programs/solana_guard` Anchor program — `register_agent`, `set_policy`, `update_policy`, `toggle_agent`, `pause_agent`, `unpause_agent`, `validate_and_execute` with on-chain policy checks (per-tx limit, rolling daily limit, protocol allowlist, kill switch). Builds to BPF via `anchor build` and passes 11 Rust tests (10 unit + 1 LiteSVM integration that **rejects an over-limit transaction on-chain**).
+>   - **Devnet deployment:** https://explorer.solana.com/address/EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF?cluster=devnet
+>   - Honest caveats: **devnet only** (not mainnet), **not audited**, **no users yet**, and **CPI fund movement is still a future milestone** — the deployed program enforces policy checks on-chain; wiring it to move funds via CPI is M2/M4.
 > - Prior grant won: Agentic Engineering Grant — 200 USDG (Superteam Earn) for this same project
 > - InsForge hackathon submission for SolanaGuard (policy engine + signed wallet-proof security model)
 > - AI-assisted build transcripts: full Claude Code + Codex session logs committed to the repo (`claude-session.jsonl`, `codex-session.jsonl`)

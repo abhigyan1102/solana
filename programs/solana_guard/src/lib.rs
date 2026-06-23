@@ -18,7 +18,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("FRuK1VzhqjybBMhp8UGVipJ9jkyuT9Dy7YJHAREwSApw");
+declare_id!("EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF");
 
 /// Maximum number of program IDs an owner can allowlist per policy.
 pub const MAX_ALLOWED_PROTOCOLS: usize = 10;

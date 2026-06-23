@@ -10,9 +10,18 @@ Architecture: React SPA → InsForge Edge Function router → SQL RPCs with `SEC
 
 > The deployable dApp lives in `app/`. The root `src/` app is an earlier landing prototype and is **not** the hackathon demo.
 
-Current demo scope: **InsForge-powered policy engine now. Anchor/on-chain enforcement next.**
+Current demo scope: **InsForge-powered policy engine, plus an Anchor on-chain enforcement program now live on devnet.**
 
-This phase does not include Anchor smart contract code, Storage, Payments, Analytics, or Compute.
+This phase does not include Storage, Payments, Analytics, or Compute.
+
+## On-chain Enforcement (Devnet)
+
+The `programs/solana_guard` Anchor program enforces policy checks on-chain (`register_agent`, `set_policy`, `validate_and_execute`, plus the emergency kill switch). It builds to BPF via `anchor build` and passes 11 Rust tests (10 unit + 1 LiteSVM integration that rejects an over-limit transaction on-chain).
+
+- **Program ID:** `EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF`
+- **Explorer (devnet):** https://explorer.solana.com/address/EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF?cluster=devnet
+
+Devnet only — **not mainnet**, **not audited**, **no users yet**. Today the program enforces the policy checks themselves; moving funds via CPI based on the on-chain decision is a future milestone.
 
 ## Backend
 
