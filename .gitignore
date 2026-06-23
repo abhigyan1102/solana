@@ -27,3 +27,6 @@ test-ledger
 .roo
 .trae
 .windsurf
+
+# Devnet-only payer keypair (never commit)
+.devnet/
