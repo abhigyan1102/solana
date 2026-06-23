@@ -30,3 +30,11 @@ test-ledger
 
 # Devnet-only payer keypair (never commit)
 .devnet/
+
+# Private submission / grant application strategy (keep out of public repo)
+SUBMISSION.md
+GRANT-APPLICATION.md
+
+# AI session transcripts
+claude-session.jsonl
+codex-session.jsonl
