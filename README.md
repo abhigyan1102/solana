@@ -1,14 +1,12 @@
 # SolanaGuard
 
-**Demo: https://solanaguard.vercel.app**
+**Demo: https://solanaguard.app**
 
-SolanaGuard is a hackathon MVP for a policy firewall that protects AI agents using Solana wallets. The current app lets a wallet owner register an agent, create a risk policy, evaluate transaction intents, inspect real backend history, and use an emergency pause kill switch.
+SolanaGuard is a MVP for a policy firewall that protects AI agents using Solana wallets. The current app lets a wallet owner register an agent, create a risk policy, evaluate transaction intents, inspect real backend history, and use an emergency pause kill switch.
 
 InsForge powers the entire backend: the Postgres database, the SQL RPC policy engine, and the Edge Function router that verifies a signed Solana wallet proof before executing any wallet-scoped RPC.
 
 Architecture: React SPA → InsForge Edge Function router → SQL RPCs with `SECURITY DEFINER` + walletProof.
-
-> The deployable dApp lives in `app/`. The root `src/` app is an earlier landing prototype and is **not** the hackathon demo.
 
 Current demo scope: **InsForge-powered policy engine, plus an Anchor on-chain enforcement program now live on devnet.**
 
