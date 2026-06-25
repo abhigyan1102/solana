@@ -189,6 +189,90 @@ const presets: Preset[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Guest demo mode — seeded, read-only sample data (no backend, no wallet).
+// Lets first-time visitors understand SolanaGuard before connecting a wallet.
+// Everything below is illustrative seed data and is clearly labelled in the UI.
+// ---------------------------------------------------------------------------
+
+type GuestScenario = {
+  id: string;
+  label: string;
+  sublabel: string;
+  amountSol: number;
+  programLabel: string;
+  programId: string;
+  decision: Decision;
+  riskScore: number;
+  reason: string;
+  matchedRules: string[];
+};
+
+const GUEST_AGENT = {
+  name: 'Demo Trading Agent',
+  walletAddress: 'DemoWallet1111111111111111111111111111111111',
+};
+
+const GUEST_POLICY = {
+  maxTransactionAmount: 1,
+  dailySpendingLimit: 5,
+  manualApprovalThreshold: 0.75,
+  allowedPrograms: 'System Program, Token Program',
+  blockedPrograms: 'Jupiter Aggregator',
+  emergencyPause: false,
+};
+
+const GUEST_SCENARIOS: GuestScenario[] = [
+  {
+    id: 'safe',
+    label: 'Safe transfer',
+    sublabel: '0.05 SOL · System Program',
+    amountSol: 0.05,
+    programLabel: 'System Program',
+    programId: SYSTEM_PROGRAM_ID,
+    decision: 'allowed',
+    riskScore: 10,
+    reason: 'Allowed: 0.05 SOL is within the 1 SOL per-transaction limit and uses an allowed program (System Program).',
+    matchedRules: ['allowed_program_ids: matched', 'max_transaction_amount: within limit'],
+  },
+  {
+    id: 'manual-approval',
+    label: 'Needs approval',
+    sublabel: '0.9 SOL · Token Program',
+    amountSol: 0.9,
+    programLabel: 'Token Program',
+    programId: TOKEN_PROGRAM_ID,
+    decision: 'warning',
+    riskScore: 60,
+    reason: 'Warning: 0.9 SOL is above the 0.75 SOL manual-approval threshold, so the owner must approve it before it can execute.',
+    matchedRules: ['manual_approval_threshold: warning'],
+  },
+  {
+    id: 'over-limit',
+    label: 'Over the limit',
+    sublabel: '5 SOL · System Program',
+    amountSol: 5,
+    programLabel: 'System Program',
+    programId: SYSTEM_PROGRAM_ID,
+    decision: 'blocked',
+    riskScore: 90,
+    reason: 'Blocked: 5 SOL exceeds the 1 SOL per-transaction limit configured for this agent.',
+    matchedRules: ['max_transaction_amount: blocked'],
+  },
+  {
+    id: 'paused',
+    label: 'Agent paused',
+    sublabel: '0.05 SOL · kill switch on',
+    amountSol: 0.05,
+    programLabel: 'System Program',
+    programId: SYSTEM_PROGRAM_ID,
+    decision: 'blocked',
+    riskScore: 100,
+    reason: 'Blocked: this agent is paused by the wallet owner. The emergency kill switch overrides every other rule.',
+    matchedRules: ['emergency_pause: blocked'],
+  },
+];
+
 const getErrorMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
   if (message.includes('wallets_address_key') || message.toLowerCase().includes('duplicate key')) {
@@ -380,6 +464,7 @@ const Dashboard: React.FC = () => {
   const [createdPolicyId, setCreatedPolicyId] = useState('');
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [guestMode, setGuestMode] = useState(false);
 
   const [agentState, setAgentState] = useState<RequestState>('idle');
   const [policyState, setPolicyState] = useState<RequestState>('idle');
@@ -885,8 +970,11 @@ const Dashboard: React.FC = () => {
   };
 
   if (!wallet.connected) {
+    if (guestMode) {
+      return <GuestDemo onExit={() => setGuestMode(false)} />;
+    }
     return (
-      <AccessGate functionsReady={functionsReady} />
+      <AccessGate functionsReady={functionsReady} onViewDemo={() => setGuestMode(true)} />
     );
   }
 
@@ -1362,7 +1450,7 @@ const splitLines = (value: string) => value
   .map(item => item.trim())
   .filter(Boolean);
 
-const AccessGate: React.FC<{ functionsReady: boolean }> = ({ functionsReady }) => (
+const AccessGate: React.FC<{ functionsReady: boolean; onViewDemo: () => void }> = ({ functionsReady, onViewDemo }) => (
   <main className="gate-shell">
     <nav className="gate-nav" aria-label="Primary">
       <a className="brand" href="#top" aria-label="SolanaGuard home">
@@ -1380,12 +1468,16 @@ const AccessGate: React.FC<{ functionsReady: boolean }> = ({ functionsReady }) =
         <p className="eyebrow">InsForge-powered policy engine now, Anchor enforcement next.</p>
         <h1>Policy firewall for autonomous Solana agents</h1>
         <p>
-          Connect a wallet to open the dashboard. Register an agent, attach a risk policy,
-          then evaluate transaction intent through the live InsForge function layer.
+          SolanaGuard checks every transaction an AI agent proposes against an owner-defined
+          policy before it runs. Explore a seeded demo instantly, or connect a wallet to
+          register real agents and policies.
         </p>
         <div className="gate-actions">
+          <button className="btn btn-primary" type="button" onClick={onViewDemo}>
+            View demo without wallet
+          </button>
           <WalletMultiButton />
-          <span className="gate-note">Dashboard unlocks after wallet connection</span>
+          <span className="gate-note">Demo is read-only · wallet unlocks real usage</span>
         </div>
       </div>
 
@@ -1399,12 +1491,12 @@ const AccessGate: React.FC<{ functionsReady: boolean }> = ({ functionsReady }) =
         </div>
         <div className="gate-ledger">
           <div>
-            <span>Wallet</span>
-            <strong>required</strong>
-          </div>
-          <div>
             <span>Cluster</span>
             <strong>devnet</strong>
+          </div>
+          <div>
+            <span>Demo</span>
+            <strong>no wallet needed</strong>
           </div>
           <div>
             <span>Function base</span>
@@ -1415,6 +1507,219 @@ const AccessGate: React.FC<{ functionsReady: boolean }> = ({ functionsReady }) =
     </section>
   </main>
 );
+
+const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
+  const [scenarioId, setScenarioId] = useState(GUEST_SCENARIOS[0].id);
+  const scenario = GUEST_SCENARIOS.find(item => item.id === scenarioId) ?? GUEST_SCENARIOS[0];
+
+  return (
+    <main className="app-shell console-shell">
+      <header className="console-header" id="top">
+        <nav className="console-nav" aria-label="Primary">
+          <a className="brand" href="#top" aria-label="SolanaGuard console">
+            <span className="brand-mark" aria-hidden="true">SG</span>
+            <span>SolanaGuard</span>
+          </a>
+          <div className="topbar-actions">
+            <span className="network-pill">Devnet</span>
+            <button className="btn btn-secondary" type="button" onClick={onExit}>
+              Back
+            </button>
+            <WalletMultiButton />
+          </div>
+        </nav>
+
+        <section className="console-hero">
+          <div>
+            <p className="eyebrow">Guest demo mode</p>
+            <h1>Policy firewall</h1>
+            <p>See how SolanaGuard evaluates agent transactions — no wallet required.</p>
+          </div>
+        </section>
+      </header>
+
+      <div className="guest-banner" role="note">
+        <span>
+          <strong>Guest demo mode — seeded, read-only data.</strong> These values are illustrative
+          examples, not real activity. Connect a wallet to manage real policies.
+        </span>
+        <WalletMultiButton />
+      </div>
+
+      <section className="workspace guest-workspace" aria-label="SolanaGuard demo">
+        <section className="panel" aria-labelledby="guest-agent-title">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Agent registry</p>
+              <h2 id="guest-agent-title">Seeded agent</h2>
+            </div>
+            <span className="id-pill">Demo</span>
+          </div>
+          <div className="wallet-details">
+            <span className="connection-dot connected" aria-hidden="true" />
+            <div>
+              <strong>{GUEST_AGENT.name}</strong>
+              <p className="mono">{shorten(GUEST_AGENT.walletAddress, 8, 8)}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel" aria-labelledby="guest-policy-title">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Policy builder</p>
+              <h2 id="guest-policy-title">Active risk policy</h2>
+            </div>
+            <span className={`decision-chip ${GUEST_POLICY.emergencyPause ? 'blocked' : 'allowed'}`}>
+              {GUEST_POLICY.emergencyPause ? 'Paused' : 'Active'}
+            </span>
+          </div>
+          <dl className="result-list guest-policy-list">
+            <div>
+              <dt>Per-transaction limit</dt>
+              <dd>{GUEST_POLICY.maxTransactionAmount} SOL</dd>
+            </div>
+            <div>
+              <dt>Daily spending limit</dt>
+              <dd>{GUEST_POLICY.dailySpendingLimit} SOL</dd>
+            </div>
+            <div>
+              <dt>Manual approval threshold</dt>
+              <dd>{GUEST_POLICY.manualApprovalThreshold} SOL</dd>
+            </div>
+            <div>
+              <dt>Allowed programs</dt>
+              <dd>{GUEST_POLICY.allowedPrograms}</dd>
+            </div>
+            <div>
+              <dt>Blocked programs</dt>
+              <dd>{GUEST_POLICY.blockedPrograms}</dd>
+            </div>
+            <div>
+              <dt>Emergency pause</dt>
+              <dd>{GUEST_POLICY.emergencyPause ? 'Enabled' : 'Disabled'}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="panel simulator" aria-labelledby="guest-sim-title">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Transaction simulator</p>
+              <h2 id="guest-sim-title">Try an example decision</h2>
+            </div>
+            <span className="id-pill">{scenario.label}</span>
+          </div>
+
+          <div className="simulator-grid">
+            <div className="form-stack">
+              <div className="field">
+                <label id="guest-scenario-label">Example scenarios</label>
+                <div className="agent-picker" role="radiogroup" aria-labelledby="guest-scenario-label">
+                  {GUEST_SCENARIOS.map(item => {
+                    const active = item.id === scenario.id;
+                    return (
+                      <button
+                        key={item.id}
+                        className={`agent-option ${active ? 'active' : ''}`}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setScenarioId(item.id)}
+                      >
+                        <span>
+                          <strong>{item.label}</strong>
+                          <small>{item.sublabel}</small>
+                        </span>
+                        <span className={`decision-chip ${item.decision}`}>{item.decision}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="field-hint">Pick a scenario to see how the policy engine would decide.</p>
+              </div>
+            </div>
+
+            <aside className={`result-panel ${scenario.decision}`}>
+              <div className="decision-header">
+                <span>Decision</span>
+                <strong>{scenario.decision}</strong>
+              </div>
+              <dl className="result-list">
+                <div>
+                  <dt>Amount</dt>
+                  <dd>{formatNumber(scenario.amountSol, 2)} SOL</dd>
+                </div>
+                <div>
+                  <dt>Program</dt>
+                  <dd>{scenario.programLabel} <span className="mono">({shorten(scenario.programId, 6, 4)})</span></dd>
+                </div>
+                <div>
+                  <dt>Risk score</dt>
+                  <dd>{scenario.riskScore}</dd>
+                </div>
+                <div>
+                  <dt>Reason</dt>
+                  <dd>{scenario.reason}</dd>
+                </div>
+                <div>
+                  <dt>Matched rules</dt>
+                  <dd>{scenario.matchedRules.join(', ')}</dd>
+                </div>
+              </dl>
+            </aside>
+          </div>
+        </section>
+
+        <section className="panel history-panel" aria-labelledby="guest-audit-title">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Audit panel</p>
+              <h2 id="guest-audit-title">Sample audit log</h2>
+            </div>
+            <span className="id-pill">Seeded</span>
+          </div>
+          <div className="table-wrap">
+            <table className="audit-table">
+              <thead>
+                <tr>
+                  <th>Decision</th>
+                  <th>Amount</th>
+                  <th>Program</th>
+                  <th>Risk</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {GUEST_SCENARIOS.map(item => (
+                  <tr key={item.id}>
+                    <td><span className={`decision-chip ${item.decision}`}>{item.decision}</span></td>
+                    <td>{formatNumber(item.amountSol, 2)} SOL</td>
+                    <td>{item.programLabel}</td>
+                    <td>{item.riskScore}</td>
+                    <td>{item.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="panel guest-cta" aria-labelledby="guest-cta-title">
+          <div>
+            <p className="eyebrow">Ready to use it for real?</p>
+            <h2 id="guest-cta-title">Connect wallet to create real agents and policies</h2>
+            <p className="muted">
+              Devnet only · not audited · no mainnet · no real users yet · on-chain fund movement
+              (CPI) is still future work. Connecting a wallet opens the live InsForge-backed console.
+            </p>
+          </div>
+          <WalletMultiButton />
+        </section>
+      </section>
+    </main>
+  );
+};
 
 const WalletPanel: React.FC<{ walletAddress: string; connected: boolean }> = ({ walletAddress, connected }) => (
   <section className="panel wallet-panel" aria-labelledby="wallet-title">

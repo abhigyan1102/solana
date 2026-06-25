@@ -496,6 +496,63 @@ button:disabled {
   grid-area: history;
 }
 
+.guest-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
+  gap: 14px;
+}
+
+.guest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid rgba(247, 199, 93, 0.34);
+  border-radius: var(--radius);
+  background: rgba(247, 199, 93, 0.07);
+}
+
+.guest-banner span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guest-banner strong {
+  color: var(--amber);
+}
+
+.guest-policy-list {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.guest-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(145deg, rgba(202, 255, 61, 0.08), transparent 46%),
+    rgba(13, 20, 13, 0.91);
+}
+
+.guest-cta h2 {
+  margin-top: 4px;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.guest-cta p.muted {
+  margin-top: 8px;
+  max-width: 620px;
+}
+
 .workspace > .panel:last-child {
   grid-area: audit;
 }
