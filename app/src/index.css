@@ -498,9 +498,15 @@ button:disabled {
 
 .guest-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: none;
   gap: 14px;
+  align-items: start;
+}
+
+.guest-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
 }
 
 .guest-banner {
@@ -1090,6 +1096,7 @@ button:disabled {
 @media (max-width: 1160px) {
   .gate-stage,
   .workspace,
+  .guest-row,
   .simulator-grid {
     grid-template-columns: 1fr;
   }
