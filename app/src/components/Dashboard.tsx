@@ -1546,7 +1546,8 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
         <WalletMultiButton />
       </div>
 
-      <section className="workspace guest-workspace" aria-label="SolanaGuard demo">
+      <section className="guest-workspace" aria-label="SolanaGuard demo">
+        <div className="guest-row">
         <section className="panel" aria-labelledby="guest-agent-title">
           <div className="section-header">
             <div>
@@ -1602,7 +1603,9 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           </dl>
         </section>
 
-        <section className="panel simulator" aria-labelledby="guest-sim-title">
+        </div>
+
+        <section className="panel" aria-labelledby="guest-sim-title">
           <div className="section-header">
             <div>
               <p className="eyebrow">Transaction simulator</p>
@@ -1671,7 +1674,7 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           </div>
         </section>
 
-        <section className="panel history-panel" aria-labelledby="guest-audit-title">
+        <section className="panel" aria-labelledby="guest-audit-title">
           <div className="section-header">
             <div>
               <p className="eyebrow">Audit panel</p>
