@@ -1466,7 +1466,7 @@ const AccessGate: React.FC<{ functionsReady: boolean; onViewDemo: () => void }> 
     <section className="gate-stage" id="top">
       <div className="gate-copy">
         <p className="eyebrow">InsForge-powered policy engine now, Anchor enforcement next.</p>
-        <h1>Policy firewall for autonomous Solana agents</h1>
+        <h1>Policy firewall for AI-agent Solana wallets</h1>
         <p>
           SolanaGuard checks every transaction an AI agent proposes against an owner-defined
           policy before it runs. Explore a seeded demo instantly, or connect a wallet to

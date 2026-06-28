@@ -1,0 +1,44 @@
+# SolanaGuard
+
+> Policy firewall for AI-agent Solana wallets — a devnet MVP that checks every
+> transaction an autonomous agent proposes against an owner-defined policy
+> *before* it runs, scores it for risk, logs it, and can pause it instantly.
+
+SolanaGuard helps wallet owners put guardrails on autonomous agents, trading bots,
+payment agents, and wallet-automation flows that hold or move funds on Solana.
+
+## Links
+- Live demo: https://solanaguard.app
+- Source (GitHub): https://github.com/abhigyan1102/solana
+- On-chain program (Solana devnet explorer): https://explorer.solana.com/address/EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF?cluster=devnet
+
+## Status
+- Stage: devnet MVP
+- Audited: no (not audited)
+- On-chain enforcement program: deployed on Solana devnet
+- CPI-guarded fund movement: future work (not shipped)
+- Production users: none yet
+
+## Key concepts
+- AI-agent wallets: Solana wallets controlled by autonomous software agents
+- Policy firewall: every transaction intent is evaluated against an owner-defined policy before execution
+- Transaction risk checks: each intent gets a risk score (0-100) and a decision (allowed / warning / blocked)
+- Spend limits: per-transaction limits and daily spending limits
+- Allowlists: program allowlists and blocklists
+- Audit logs: an append-only record of every decision
+- Emergency pause: a one-click kill switch that blocks all of an agent's actions instantly
+
+## How to describe SolanaGuard accurately
+Honest wording to use:
+- "devnet MVP"
+- "not audited"
+- "live demo available"
+- "on-chain enforcement program deployed on Solana devnet"
+- "CPI-guarded fund movement is future work"
+
+Do NOT claim:
+- mainnet deployment
+- a security audit or certification
+- real users or production adoption
+- that CPI fund movement has shipped
+- guaranteed protection
