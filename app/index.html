@@ -95,26 +95,58 @@
       ]
     }
     </script>
+
+    <style>
+      @keyframes sg-spin { to { transform: rotate(360deg); } }
+      @keyframes sg-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    </style>
   </head>
   <body>
     <div id="root">
-      <!-- Static fallback: visible before the React app mounts and to non-JS crawlers.
-           Mirrors the live product copy; replaced on mount. Keep wording honest. -->
-      <main style="max-width:760px;margin:0 auto;padding:48px 24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#edf7ff;background:#030712;line-height:1.55;">
+      <!-- Pre-mount loading splash: shown only for the instant before the React app
+           mounts (createRoot replaces it). Branded so a slow load looks intentional.
+           Carries the page's single H1 + a one-line summary for crawlers; the full
+           readable copy lives in the <noscript> block below for non-JS crawlers. -->
+      <div id="sg-splash" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(900px 520px at 78% -10%,rgba(153,69,255,0.16),transparent 60%),radial-gradient(760px 520px at 8% 112%,rgba(20,241,149,0.10),transparent 58%),#030712;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#edf7ff;">
+        <div style="max-width:520px;text-align:center;animation:sg-fade .4s ease both;">
+          <svg width="56" height="56" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block;margin:0 auto 22px;">
+            <defs>
+              <linearGradient id="sgs" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#9945ff"/><stop offset="0.55" stop-color="#67e8f9"/><stop offset="1" stop-color="#14f195"/>
+              </linearGradient>
+            </defs>
+            <path d="M32 8 L52 16 V32 C52 44 43 52 32 56 C21 52 12 44 12 32 V16 Z" fill="url(#sgs)" opacity="0.16"/>
+            <path d="M32 8 L52 16 V32 C52 44 43 52 32 56 C21 52 12 44 12 32 V16 Z" fill="none" stroke="url(#sgs)" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M24 33 L30 39 L42 25" fill="none" stroke="url(#sgs)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#67e8f9;margin:0 0 10px;">SolanaGuard · Devnet MVP</p>
+          <h1 style="font-size:30px;line-height:1.15;font-weight:800;margin:0 0 14px;color:#edf7ff;">Policy firewall for AI-agent Solana wallets</h1>
+          <p style="color:#9fb0c7;line-height:1.55;margin:0 0 26px;">
+            Check every transaction an AI agent proposes against an owner-defined policy before it runs —
+            risk-scored, logged, and killable with a one-click emergency pause.
+          </p>
+          <p style="display:inline-flex;align-items:center;gap:10px;color:#9fb0c7;font-size:14px;margin:0;">
+            <span style="width:16px;height:16px;border:2px solid rgba(103,232,249,0.28);border-top-color:#67e8f9;border-radius:50%;display:inline-block;animation:sg-spin .8s linear infinite;"></span>
+            Loading console…
+          </p>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <div style="max-width:760px;margin:0 auto;padding:48px 24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#edf7ff;background:#030712;line-height:1.55;">
         <p style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#67e8f9;margin:0 0 8px;">SolanaGuard · Devnet MVP</p>
-        <h1 style="font-size:32px;line-height:1.15;margin:0 0 16px;color:#edf7ff;">Policy firewall for AI-agent Solana wallets</h1>
+        <h2 style="font-size:28px;line-height:1.15;margin:0 0 16px;color:#edf7ff;">Policy firewall for AI-agent Solana wallets</h2>
         <p style="color:#9fb0c7;margin:0 0 20px;">
           SolanaGuard sits between an autonomous agent and the Solana chain. Every transaction an
-          AI agent proposes is checked against an owner-defined policy <em>before</em> it runs,
-          scored for risk, written to an append-only audit log, and killable with a one-click
-          emergency pause.
+          AI agent proposes is checked against an owner-defined policy before it runs, scored for
+          risk, written to an append-only audit log, and killable with a one-click emergency pause.
         </p>
-        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Who it's for</h2>
+        <h3 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Who it's for</h3>
         <p style="color:#9fb0c7;margin:0 0 20px;">
           Builders running autonomous agents, trading bots, payment agents, and wallet-automation
           flows that hold or move funds on Solana.
         </p>
-        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Policies it enforces</h2>
+        <h3 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Policies it enforces</h3>
         <ul style="color:#9fb0c7;margin:0 0 20px;padding-left:20px;">
           <li>Per-transaction spend limits and daily spending limits</li>
           <li>Program allowlists and blocklists</li>
@@ -122,26 +154,19 @@
           <li>Append-only audit logs of every decision</li>
           <li>Emergency pause (kill switch) that blocks all agent actions instantly</li>
         </ul>
-        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Status</h2>
+        <h3 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Status</h3>
         <p style="color:#9fb0c7;margin:0 0 20px;">
           An off-chain policy engine powers the live demo, and an on-chain enforcement program is
-          deployed on <strong>Solana devnet</strong>. This is an early <strong>devnet MVP</strong>:
-          it is <strong>not audited</strong>, has no production users, and CPI-guarded fund movement
-          is future work. No real funds are moved in the demo.
+          deployed on Solana devnet. This is an early devnet MVP: it is not audited, has no
+          production users, and CPI-guarded fund movement is future work. No real funds are moved
+          in the demo. The interactive demo requires JavaScript.
         </p>
         <p style="margin:24px 0 0;">
           <a href="https://solanaguard.app/" style="color:#14f195;">Live demo</a> ·
           <a href="https://github.com/abhigyan1102/solana" style="color:#14f195;">GitHub</a> ·
           <a href="https://explorer.solana.com/address/EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF?cluster=devnet" style="color:#14f195;">Devnet program</a>
         </p>
-      </main>
-    </div>
-    <noscript>
-      SolanaGuard is a devnet MVP policy firewall for AI-agent Solana wallets. It enforces
-      per-transaction and daily spend limits, program allowlists, risk checks, audit logs, and an
-      emergency pause before autonomous agents move funds. Not audited; on-chain enforcement is
-      deployed on Solana devnet and CPI-guarded fund movement is future work. The interactive demo
-      requires JavaScript.
+      </div>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
