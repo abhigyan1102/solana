@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SolanaGuard">
+  <defs>
+    <linearGradient id="sg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9945ff"/>
+      <stop offset="0.55" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#14f195"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#07111f"/>
+  <!-- Shield -->
+  <path d="M32 8 L52 16 V32 C52 44 43 52 32 56 C21 52 12 44 12 32 V16 Z"
+        fill="url(#sg)" opacity="0.16"/>
+  <path d="M32 8 L52 16 V32 C52 44 43 52 32 56 C21 52 12 44 12 32 V16 Z"
+        fill="none" stroke="url(#sg)" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Guard check -->
+  <path d="M24 33 L30 39 L42 25" fill="none" stroke="url(#sg)"
+        stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

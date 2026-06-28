@@ -3,13 +3,146 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SolanaGuard is an on-chain policy console for AI agents on Solana. Register agents, set spending policies, and enforce guardrails." />
-    <title>SolanaGuard | AI Agent Guardrails on Solana</title>
+
+    <!-- Primary metadata -->
+    <title>SolanaGuard — Policy Firewall for AI-Agent Solana Wallets</title>
+    <meta
+      name="description"
+      content="SolanaGuard is a devnet MVP policy firewall for AI-agent Solana wallets, helping owners enforce spend limits, allowlists, audit logs, and emergency pause before autonomous wallet actions become risky."
+    />
+    <link rel="canonical" href="https://solanaguard.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#030712" />
+    <meta name="author" content="SolanaGuard" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="SolanaGuard — Policy Firewall for AI-Agent Solana Wallets" />
+    <meta
+      property="og:description"
+      content="A devnet MVP policy firewall for AI-agent Solana wallets: enforce per-transaction and daily limits, program allowlists, risk checks, audit logs, and an emergency pause before autonomous agents move funds."
+    />
+    <meta property="og:url" content="https://solanaguard.app/" />
+    <meta property="og:site_name" content="SolanaGuard" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://solanaguard.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SolanaGuard — policy firewall for AI-agent Solana wallets" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SolanaGuard — Policy Firewall for AI-Agent Solana Wallets" />
+    <meta
+      name="twitter:description"
+      content="A devnet MVP policy firewall for AI-agent Solana wallets: spend limits, allowlists, audit logs, and emergency pause before autonomous agents move funds."
+    />
+    <meta name="twitter:image" content="https://solanaguard.app/og-image.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://solanaguard.app/#software",
+          "name": "SolanaGuard",
+          "url": "https://solanaguard.app/",
+          "applicationCategory": "SecurityApplication",
+          "applicationSubCategory": "DeveloperApplication",
+          "operatingSystem": "Web",
+          "description": "SolanaGuard is a devnet MVP policy firewall for AI-agent Solana wallets. Owners register agents and enforce per-transaction and daily spend limits, program allowlists, transaction risk checks, audit logs, and an emergency pause before autonomous agents move funds. An on-chain enforcement program is deployed on Solana devnet; CPI-guarded fund movement is future work. Not audited.",
+          "image": "https://solanaguard.app/og-image.png",
+          "featureList": [
+            "Per-transaction spend limits",
+            "Daily spending limits",
+            "Program allowlists and blocklists",
+            "Transaction risk scoring",
+            "Append-only audit logs",
+            "Emergency pause (kill switch)",
+            "On-chain enforcement program on Solana devnet"
+          ],
+          "sameAs": [
+            "https://github.com/abhigyan1102/solana"
+          ],
+          "publisher": { "@id": "https://solanaguard.app/#org" }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://solanaguard.app/#org",
+          "name": "SolanaGuard",
+          "url": "https://solanaguard.app/",
+          "logo": "https://solanaguard.app/apple-touch-icon.png",
+          "sameAs": [
+            "https://github.com/abhigyan1102/solana"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://solanaguard.app/#website",
+          "name": "SolanaGuard",
+          "url": "https://solanaguard.app/",
+          "description": "Policy firewall for AI-agent Solana wallets — devnet MVP.",
+          "publisher": { "@id": "https://solanaguard.app/#org" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static fallback: visible before the React app mounts and to non-JS crawlers.
+           Mirrors the live product copy; replaced on mount. Keep wording honest. -->
+      <main style="max-width:760px;margin:0 auto;padding:48px 24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#edf7ff;background:#030712;line-height:1.55;">
+        <p style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#67e8f9;margin:0 0 8px;">SolanaGuard · Devnet MVP</p>
+        <h1 style="font-size:32px;line-height:1.15;margin:0 0 16px;color:#edf7ff;">Policy firewall for AI-agent Solana wallets</h1>
+        <p style="color:#9fb0c7;margin:0 0 20px;">
+          SolanaGuard sits between an autonomous agent and the Solana chain. Every transaction an
+          AI agent proposes is checked against an owner-defined policy <em>before</em> it runs,
+          scored for risk, written to an append-only audit log, and killable with a one-click
+          emergency pause.
+        </p>
+        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Who it's for</h2>
+        <p style="color:#9fb0c7;margin:0 0 20px;">
+          Builders running autonomous agents, trading bots, payment agents, and wallet-automation
+          flows that hold or move funds on Solana.
+        </p>
+        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Policies it enforces</h2>
+        <ul style="color:#9fb0c7;margin:0 0 20px;padding-left:20px;">
+          <li>Per-transaction spend limits and daily spending limits</li>
+          <li>Program allowlists and blocklists</li>
+          <li>Transaction risk scoring with manual-approval thresholds</li>
+          <li>Append-only audit logs of every decision</li>
+          <li>Emergency pause (kill switch) that blocks all agent actions instantly</li>
+        </ul>
+        <h2 style="font-size:18px;margin:24px 0 8px;color:#edf7ff;">Status</h2>
+        <p style="color:#9fb0c7;margin:0 0 20px;">
+          An off-chain policy engine powers the live demo, and an on-chain enforcement program is
+          deployed on <strong>Solana devnet</strong>. This is an early <strong>devnet MVP</strong>:
+          it is <strong>not audited</strong>, has no production users, and CPI-guarded fund movement
+          is future work. No real funds are moved in the demo.
+        </p>
+        <p style="margin:24px 0 0;">
+          <a href="https://solanaguard.app/" style="color:#14f195;">Live demo</a> ·
+          <a href="https://github.com/abhigyan1102/solana" style="color:#14f195;">GitHub</a> ·
+          <a href="https://explorer.solana.com/address/EdskrgG3PmMPxzaNuvp7oJjZ5MU3jkXmY4bHbSYpnsWF?cluster=devnet" style="color:#14f195;">Devnet program</a>
+        </p>
+      </main>
+    </div>
+    <noscript>
+      SolanaGuard is a devnet MVP policy firewall for AI-agent Solana wallets. It enforces
+      per-transaction and daily spend limits, program allowlists, risk checks, audit logs, and an
+      emergency pause before autonomous agents move funds. Not audited; on-chain enforcement is
+      deployed on Solana devnet and CPI-guarded fund movement is future work. The interactive demo
+      requires JavaScript.
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
