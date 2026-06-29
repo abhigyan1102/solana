@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ SolanaGuard
+# SolanaGuard
 
 **A policy firewall for AI agents that hold Solana wallets.**
 
