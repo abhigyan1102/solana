@@ -110,7 +110,7 @@ npm run build    # production build (tsc + vite)
 
 SolanaGuard's data model is the product. It exists in two mirrored forms — a rich relational model off-chain, and a minimal account model on-chain — sharing one conceptual shape: **owner → agent → policy → decisions**.
 
-### Off-chain data model (Postgres / InsForge)
+### Off-chain data model (Postgres SQL/ InsForge)
 
 ```mermaid
 erDiagram
