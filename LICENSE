@@ -1,21 +1,48 @@
-MIT License
+PROPRIETARY LICENSE
 
-Copyright (c) 2026 Abhigyan Singh
+Copyright (c) 2026 Abhigyan Singh. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the "Software") are the
+exclusive property of Abhigyan Singh. All rights are reserved.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+RESTRICTIONS:
+
+1. NO COPYING: You may not copy, reproduce, or duplicate any part of this
+   Software, in whole or in part, in any form or by any means.
+
+2. NO DISTRIBUTION: You may not distribute, publish, transmit, or transfer
+   the Software or any portion thereof to any third party.
+
+3. NO MODIFICATION: You may not modify, adapt, translate, reverse-engineer,
+   decompile, disassemble, or create derivative works based on the Software.
+
+4. NO COMMERCIAL USE: You may not use the Software, or any part thereof,
+   for commercial purposes without prior written permission from the owner.
+
+5. NO SUBLICENSING: You may not sublicense, sell, rent, lease, or lend the
+   Software to any third party.
+
+6. VIEWING ONLY: If this repository is publicly accessible, access is granted
+   solely for personal viewing and reference purposes. Any other use is
+   strictly prohibited.
+
+OWNERSHIP:
+
+The Software is and shall remain the sole and exclusive property of
+Abhigyan Singh. No title, ownership, or intellectual property rights in the
+Software are transferred to you by virtue of accessing or viewing this
+repository.
+
+ENFORCEMENT:
+
+Any unauthorized use, copying, modification, distribution, or reproduction of
+this Software, in whole or in part, may result in severe civil and criminal
+penalties, and will be prosecuted to the maximum extent possible under the law.
+
+NO WARRANTY:
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE.
+
+For licensing inquiries or permissions, contact: abhigyan1102
