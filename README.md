@@ -2,7 +2,7 @@
 
 # SolanaGuard
 
-**A policy firewall for AI agents that hold Solana wallets.**
+**A policy firewall for AI agents that hold Solana wallets**
 
 Give an autonomous agent a wallet and it can move funds at machine speed — including straight into a drain. SolanaGuard sits between the agent and the chain: every transaction intent is checked against an owner-defined policy *before* it executes, scored for risk, logged immutably, and killable in one click.
 
