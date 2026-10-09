@@ -1,6 +1,7 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import Homepage from './Homepage';
+import ConsoleShell, { ConsoleIcon, ConsoleRecordsEmpty, ConsoleGuide } from './ConsoleShell';
 
 type Decision = 'allowed' | 'warning' | 'blocked';
 type RequestState = 'idle' | 'loading' | 'success' | 'error';
@@ -153,8 +154,8 @@ const presets: Preset[] = [
   },
   {
     id: 'manual-warning',
-    label: 'Manual approval warning',
-    description: 'Medium spend that should cross the approval threshold.',
+    label: 'Approval warning',
+    description: 'Illustrative token transfer; the selected policy determines the result.',
     amount: '2.5',
     programId: TOKEN_PROGRAM_ID,
     recipient: 'DemoApprovalWallet1111111111111111111111111',
@@ -180,7 +181,7 @@ const presets: Preset[] = [
   },
   {
     id: 'max-amount',
-    label: 'Max amount block',
+    label: 'Over limit',
     description: 'Large transaction that should exceed policy limits.',
     amount: '25',
     programId: SYSTEM_PROGRAM_ID,
@@ -237,14 +238,14 @@ const GUEST_SCENARIOS: GuestScenario[] = [
   },
   {
     id: 'manual-approval',
-    label: 'Needs approval',
+    label: 'Approval warning',
     sublabel: '0.9 SOL · Token Program',
     amountSol: 0.9,
     programLabel: 'Token Program',
     programId: TOKEN_PROGRAM_ID,
     decision: 'warning',
     riskScore: 60,
-    reason: 'Warning: 0.9 SOL is above the 0.75 SOL manual-approval threshold, so the owner must approve it before it can execute.',
+    reason: 'Warning: 0.9 SOL is above the 0.75 SOL manual-approval threshold, so the request is flagged for owner review. The approval workflow is not implemented.',
     matchedRules: ['manual_approval_threshold: warning'],
   },
   {
@@ -464,7 +465,33 @@ const Dashboard: React.FC = () => {
   const [createdPolicyId, setCreatedPolicyId] = useState('');
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [guestMode, setGuestMode] = useState(false);
+  const [page, setPage] = useState<'home' | 'console' | 'demo'>(() =>
+    window.location.hash.startsWith('#console')
+      ? 'console'
+      : window.location.hash.startsWith('#demo')
+        ? 'demo'
+        : 'home',
+  );
+  const navigate = (next: 'home' | 'console' | 'demo') => {
+    setPage(next);
+    window.location.hash = next === 'home' ? 'top' : `${next}-overview`;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+  useEffect(() => {
+    const syncPage = () =>
+      setPage(
+        window.location.hash.startsWith('#console')
+          ? 'console'
+          : window.location.hash.startsWith('#demo')
+            ? 'demo'
+            : 'home',
+      );
+    window.addEventListener('hashchange', syncPage);
+    return () => window.removeEventListener('hashchange', syncPage);
+  }, []);
+  useEffect(() => {
+    if (wallet.connected) navigate('console');
+  }, [wallet.connected]);
 
   const [agentState, setAgentState] = useState<RequestState>('idle');
   const [policyState, setPolicyState] = useState<RequestState>('idle');
@@ -969,89 +996,140 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  if (!wallet.connected) {
-    if (guestMode) {
-      return <GuestDemo onExit={() => setGuestMode(false)} />;
-    }
+  if (page === 'demo')
     return (
-      <AccessGate functionsReady={functionsReady} onViewDemo={() => setGuestMode(true)} />
+      <GuestDemo
+        onExit={() => navigate('home')}
+        onConsole={() => navigate('console')}
+      />
     );
-  }
+  if (page === 'home')
+    return (
+      <Homepage
+        onViewDemo={() => navigate('demo')}
+        onOpenConsole={() => navigate('console')}
+      />
+    );
 
   return (
-    <main className="app-shell console-shell">
-      <header className="console-header" id="top">
-        <nav className="console-nav" aria-label="Primary">
-          <a className="brand" href="#top" aria-label="SolanaGuard console">
-            <span className="brand-mark" aria-hidden="true">SG</span>
-            <span>SolanaGuard</span>
-          </a>
-          <div className="topbar-actions">
-            <span className="network-pill">Devnet</span>
-            <WalletMultiButton />
-          </div>
-        </nav>
-
-        <section className="console-hero">
-          <div>
-            <p className="eyebrow">Operator console</p>
-            <h1>Policy firewall</h1>
-            <p>
-              InsForge-powered policy engine now. Anchor enforcement next.
-            </p>
-          </div>
-          <div className="wallet-chip">
-            <span className="connection-dot connected" aria-hidden="true" />
-            <span className="mono">{shorten(walletAddress, 10, 8)}</span>
-          </div>
-        </section>
-      </header>
-
-      <section className="workspace" id="dashboard" aria-label="SolanaGuard dashboard">
-        <WalletPanel walletAddress={walletAddress} connected={wallet.connected} />
-
+    <ConsoleShell
+      connected={wallet.connected}
+      walletAddress={walletAddress}
+      onHome={() => navigate('home')}
+      onDemo={() => navigate('demo')}
+    >
+      <section className="workspace" aria-label="SolanaGuard dashboard">
         <section className="stats-section panel" aria-labelledby="stats-title">
           <div className="section-header">
             <div>
-              <p className="eyebrow">Dashboard</p>
-              <h2 id="stats-title">Backend activity</h2>
+              <h2 id="stats-title">Your activity</h2>
             </div>
             <div className="header-actions">
-              <button className="btn btn-secondary" type="button" onClick={seedDemoData} disabled={!wallet.connected || !functionsReady || seedState === 'loading'}>
-                {!wallet.connected ? 'Connect wallet first' : seedState === 'loading' ? 'Seeding...' : 'Seed demo data'}
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={seedDemoData}
+                disabled={
+                  !wallet.connected ||
+                  !functionsReady ||
+                  seedState === 'loading'
+                }
+              >
+                {seedState === 'loading'
+                  ? 'Adding examples...'
+                  : 'Add example agents'}
               </button>
-              <button className="btn btn-secondary" type="button" onClick={refreshBackendDataSafely} disabled={!functionsReady || statsState === 'loading' || auditState === 'loading' || historyState === 'loading'}>
-                {statsState === 'loading' ? 'Refreshing...' : 'Refresh stats'}
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={refreshBackendDataSafely}
+                disabled={
+                  !wallet.connected ||
+                  !functionsReady ||
+                  statsState === 'loading' ||
+                  auditState === 'loading' ||
+                  historyState === 'loading'
+                }
+              >
+                {statsState === 'loading'
+                  ? 'Refreshing...'
+                  : 'Refresh activity'}
               </button>
             </div>
           </div>
 
-          {!functionsReady ? (
+          {!wallet.connected ? (
+            <>
+              <div className="stats-grid">
+                {[
+                  'Registered agents',
+                  'Linked wallets',
+                  'Evaluated requests',
+                  'Blocked requests',
+                  'Open alerts',
+                  'Average risk',
+                ].map(label => (
+                  <StatTile key={label} label={label} value="—" />
+                ))}
+              </div>
+              <p className="stats-note">
+                Connect a wallet to load your activity. A wallet signature is
+                required to access its records.
+              </p>
+            </>
+          ) : !functionsReady ? (
             <ConfigNotice />
-          ) : statsState === 'loading' ? (
+          ) : statsState === 'loading' || statsState === 'idle' ? (
             <StatsSkeleton />
           ) : statsState === 'error' ? (
-            <InlineError message={statsError} actionLabel="Retry stats" onAction={refreshBackendDataSafely} />
+            <InlineError
+              message={statsError}
+              actionLabel="Retry stats"
+              onAction={refreshBackendDataSafely}
+            />
           ) : (
             <div className="stats-grid">
-              <StatTile label="Backend agents" value={stats.agents} />
-              <StatTile label="Protected wallets" value={stats.protectedWallets} />
-              <StatTile label="Transactions checked" value={stats.transactionsChecked} />
-              <StatTile label="Blocked transactions" value={stats.blockedTransactions} tone="danger" />
-              <StatTile label="Open alerts" value={stats.openAlerts} tone="warning" />
-              <StatTile label="Average risk score" value={formatNumber(stats.averageRiskScore, 1)} tone="accent" />
+              <StatTile label="Registered agents" value={stats.agents} />
+              <StatTile label="Linked wallets" value={stats.protectedWallets} />
+              <StatTile
+                label="Evaluated requests"
+                value={stats.transactionsChecked}
+              />
+              <StatTile
+                label="Blocked requests"
+                value={stats.blockedTransactions}
+                tone="danger"
+              />
+              <StatTile
+                label="Open alerts"
+                value={stats.openAlerts}
+                tone="warning"
+              />
+              <StatTile
+                label="Average risk"
+                value={formatNumber(stats.averageRiskScore, 1)}
+                tone="accent"
+              />
             </div>
           )}
         </section>
 
+        <ConsoleGuide />
         <div className="product-grid">
-          <section className="panel" aria-labelledby="agent-title">
+          <section
+            className="panel"
+            id="console-agents"
+            data-console-section
+            aria-labelledby="agent-title"
+          >
             <div className="section-header">
               <div>
-                <p className="eyebrow">Agent registry</p>
-                <h2 id="agent-title">Register wallet-linked agent</h2>
+                <h2 id="agent-title">Register an agent</h2>
+                <p>Give your agent a name and link it to your wallet.</p>
               </div>
-              {createdAgentId ? <span className="id-pill">Agent {shorten(createdAgentId)}</span> : null}
+              {createdAgentId ? (
+                <span className="id-pill">Agent {shorten(createdAgentId)}</span>
+              ) : null}
             </div>
 
             <form className="form-stack" onSubmit={createAgent}>
@@ -1062,7 +1140,12 @@ const Dashboard: React.FC = () => {
                   type="text"
                   autoComplete="off"
                   value={agentForm.name}
-                  onChange={event => setAgentForm(prev => ({ ...prev, name: event.target.value }))}
+                  onChange={event =>
+                    setAgentForm(prev => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
                   required
                 />
               </Field>
@@ -1072,7 +1155,12 @@ const Dashboard: React.FC = () => {
                   id="agent-description"
                   className="input textarea"
                   value={agentForm.description}
-                  onChange={event => setAgentForm(prev => ({ ...prev, description: event.target.value }))}
+                  onChange={event =>
+                    setAgentForm(prev => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
                   required
                 />
               </Field>
@@ -1087,19 +1175,38 @@ const Dashboard: React.FC = () => {
                 />
               </Field>
 
-              <button className="btn btn-primary btn-full" type="submit" disabled={!wallet.connected || !functionsReady || agentState === 'loading'}>
-                {agentState === 'loading' ? 'Creating agent...' : 'Create agent'}
+              <button
+                className="btn btn-primary btn-full"
+                type="submit"
+                disabled={
+                  !wallet.connected ||
+                  !functionsReady ||
+                  agentState === 'loading'
+                }
+              >
+                {agentState === 'loading'
+                  ? 'Creating agent...'
+                  : 'Create agent'}
               </button>
             </form>
           </section>
 
-          <section className="panel" aria-labelledby="policy-title">
+          <section
+            className="panel"
+            id="console-policy"
+            data-console-section
+            aria-labelledby="policy-title"
+          >
             <div className="section-header">
               <div>
-                <p className="eyebrow">Policy builder</p>
-                <h2 id="policy-title">Create risk policy</h2>
+                <h2 id="policy-title">Build a policy</h2>
+                <p>Set limits for the agent you select. Amounts are in SOL.</p>
               </div>
-              {createdPolicyId ? <span className="id-pill">Policy {shorten(createdPolicyId)}</span> : null}
+              {createdPolicyId ? (
+                <span className="id-pill">
+                  Policy {shorten(createdPolicyId)}
+                </span>
+              ) : null}
             </div>
 
             <form className="form-stack" onSubmit={createPolicy}>
@@ -1112,7 +1219,12 @@ const Dashboard: React.FC = () => {
               />
 
               <div className="two-col">
-                <Field label="Max tx amount" htmlFor="max-transaction-amount" required hint="SOL-equivalent limit.">
+                <Field
+                  label="Per-transaction limit"
+                  htmlFor="max-transaction-amount"
+                  required
+                  hint="SOL-equivalent limit."
+                >
                   <input
                     id="max-transaction-amount"
                     className="input"
@@ -1120,12 +1232,21 @@ const Dashboard: React.FC = () => {
                     inputMode="decimal"
                     autoComplete="off"
                     value={policyForm.maxTransactionAmount}
-                    onChange={event => setPolicyForm(prev => ({ ...prev, maxTransactionAmount: event.target.value }))}
+                    onChange={event =>
+                      setPolicyForm(prev => ({
+                        ...prev,
+                        maxTransactionAmount: event.target.value,
+                      }))
+                    }
                     required
                   />
                 </Field>
 
-                <Field label="Daily spending limit" htmlFor="daily-spending-limit" required>
+                <Field
+                  label="Daily spending limit"
+                  htmlFor="daily-spending-limit"
+                  required
+                >
                   <input
                     id="daily-spending-limit"
                     className="input"
@@ -1133,13 +1254,23 @@ const Dashboard: React.FC = () => {
                     inputMode="decimal"
                     autoComplete="off"
                     value={policyForm.dailySpendingLimit}
-                    onChange={event => setPolicyForm(prev => ({ ...prev, dailySpendingLimit: event.target.value }))}
+                    onChange={event =>
+                      setPolicyForm(prev => ({
+                        ...prev,
+                        dailySpendingLimit: event.target.value,
+                      }))
+                    }
                     required
                   />
                 </Field>
               </div>
 
-              <Field label="Manual approval threshold" htmlFor="manual-threshold" required hint="SOL amount above which manual approval is required.">
+              <Field
+                label="Manual approval threshold"
+                htmlFor="manual-threshold"
+                required
+                hint="Requests above this SOL amount are flagged with a warning."
+              >
                 <input
                   id="manual-threshold"
                   className="input"
@@ -1147,41 +1278,77 @@ const Dashboard: React.FC = () => {
                   inputMode="decimal"
                   autoComplete="off"
                   value={policyForm.manualApprovalThreshold}
-                  onChange={event => setPolicyForm(prev => ({ ...prev, manualApprovalThreshold: event.target.value }))}
+                  onChange={event =>
+                    setPolicyForm(prev => ({
+                      ...prev,
+                      manualApprovalThreshold: event.target.value,
+                    }))
+                  }
                   required
                 />
               </Field>
 
-              <Field label="Allowed program IDs" htmlFor="allowed-programs" hint="One program ID per line.">
-                <textarea
-                  id="allowed-programs"
-                  className="input textarea mono"
-                  value={policyForm.allowedProgramIds}
-                  onChange={event => setPolicyForm(prev => ({ ...prev, allowedProgramIds: event.target.value }))}
-                  spellCheck={false}
-                />
-              </Field>
+              <details className="permissions">
+                <summary>Program permissions</summary>
+                <div className="two-col">
+                  <Field
+                    label="Allowed program IDs"
+                    htmlFor="allowed-programs"
+                    hint="One program ID per line."
+                  >
+                    <textarea
+                      id="allowed-programs"
+                      className="input textarea mono"
+                      value={policyForm.allowedProgramIds}
+                      onChange={event =>
+                        setPolicyForm(prev => ({
+                          ...prev,
+                          allowedProgramIds: event.target.value,
+                        }))
+                      }
+                      spellCheck={false}
+                    />
+                  </Field>
 
-              <Field label="Blocked program IDs" htmlFor="blocked-programs" hint="One program ID per line.">
-                <textarea
-                  id="blocked-programs"
-                  className="input textarea mono"
-                  value={policyForm.blockedProgramIds}
-                  onChange={event => setPolicyForm(prev => ({ ...prev, blockedProgramIds: event.target.value }))}
-                  spellCheck={false}
-                />
-              </Field>
+                  <Field
+                    label="Blocked program IDs"
+                    htmlFor="blocked-programs"
+                    hint="One program ID per line."
+                  >
+                    <textarea
+                      id="blocked-programs"
+                      className="input textarea mono"
+                      value={policyForm.blockedProgramIds}
+                      onChange={event =>
+                        setPolicyForm(prev => ({
+                          ...prev,
+                          blockedProgramIds: event.target.value,
+                        }))
+                      }
+                      spellCheck={false}
+                    />
+                  </Field>
+                </div>
+              </details>
 
               <label className="toggle-row" htmlFor="emergency-paused">
                 <input
                   id="emergency-paused"
                   type="checkbox"
                   checked={policyForm.emergencyPaused}
-                  onChange={event => setPolicyForm(prev => ({ ...prev, emergencyPaused: event.target.checked }))}
+                  onChange={event =>
+                    setPolicyForm(prev => ({
+                      ...prev,
+                      emergencyPaused: event.target.checked,
+                    }))
+                  }
                 />
                 <span>
-                  <strong>Emergency pause</strong>
-                  <small>Initial kill switch value for the policy you create.</small>
+                  <strong>Start this policy paused</strong>
+                  <small>
+                    The policy engine will block requests while the agent is
+                    paused.
+                  </small>
                 </span>
               </label>
 
@@ -1191,10 +1358,15 @@ const Dashboard: React.FC = () => {
                   type="checkbox"
                   checked={selectedEmergencyPause}
                   onChange={event => toggleEmergencyPause(event.target.checked)}
-                  disabled={!functionsReady || !selectedAgentId || pauseState === 'loading'}
+                  disabled={
+                    !wallet.connected ||
+                    !functionsReady ||
+                    !selectedAgentId ||
+                    pauseState === 'loading'
+                  }
                 />
                 <label htmlFor="active-emergency-pause">
-                  <strong>Active policy kill switch</strong>
+                  <strong>Pause active agent</strong>
                   <small>
                     {selectedAgentId
                       ? `Current: ${selectedEmergencyPauseKnown ? (selectedEmergencyPause ? 'enabled' : 'disabled') : 'unknown until policy update'}`
@@ -1203,20 +1375,58 @@ const Dashboard: React.FC = () => {
                 </label>
               </div>
 
-              <button className="btn btn-primary btn-full" type="submit" disabled={!functionsReady || !selectedAgentId || policyState === 'loading'}>
-                {policyState === 'loading' ? 'Creating policy...' : 'Create policy'}
+              <button
+                className="btn btn-primary btn-full"
+                type="submit"
+                disabled={
+                  !wallet.connected ||
+                  !functionsReady ||
+                  !selectedAgentId ||
+                  policyState === 'loading'
+                }
+              >
+                {policyState === 'loading'
+                  ? 'Creating policy...'
+                  : 'Create policy'}
               </button>
             </form>
           </section>
         </div>
 
-        <section className="panel simulator" aria-labelledby="simulator-title">
+        <section
+          className="panel simulator"
+          id="console-simulator"
+          data-console-section
+          aria-labelledby="simulator-title"
+        >
           <div className="section-header">
             <div>
-              <p className="eyebrow">Transaction simulator</p>
-              <h2 id="simulator-title">Evaluate transaction intent</h2>
+              <h2 id="simulator-title">Check before you act.</h2>
+              <p>
+                Evaluate an intent against the selected agent’s policy. No funds
+                are moved.
+              </p>
             </div>
-            <span className="id-pill">{selectedAgent ? selectedAgent.name : 'No agent selected'}</span>
+            <span className="id-pill">
+              {selectedAgent ? selectedAgent.name : 'No agent selected'}
+            </span>
+          </div>
+
+          <div
+            className="sg-console-presets"
+            role="group"
+            aria-label="Transaction presets"
+          >
+            {presets.map(preset => (
+              <button
+                key={preset.id}
+                type="button"
+                aria-pressed={transactionForm.presetId === preset.id}
+                onClick={() => handlePresetChange(preset.id)}
+              >
+                {preset.label}
+              </button>
+            ))}
           </div>
 
           <div className="simulator-grid">
@@ -1237,11 +1447,15 @@ const Dashboard: React.FC = () => {
                   onChange={event => handlePresetChange(event.target.value)}
                 >
                   {presets.map(preset => (
-                    <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
                   ))}
                   <option value="custom">Custom transaction</option>
                 </select>
-                {selectedPreset ? <p className="field-hint">{selectedPreset.description}</p> : null}
+                {selectedPreset ? (
+                  <p className="field-hint">{selectedPreset.description}</p>
+                ) : null}
               </Field>
 
               <div className="two-col">
@@ -1253,7 +1467,13 @@ const Dashboard: React.FC = () => {
                     inputMode="decimal"
                     autoComplete="off"
                     value={transactionForm.amount}
-                    onChange={event => setTransactionForm(prev => ({ ...prev, amount: event.target.value, presetId: 'custom' }))}
+                    onChange={event =>
+                      setTransactionForm(prev => ({
+                        ...prev,
+                        amount: event.target.value,
+                        presetId: 'custom',
+                      }))
+                    }
                     required
                   />
                 </Field>
@@ -1265,7 +1485,13 @@ const Dashboard: React.FC = () => {
                     type="text"
                     autoComplete="off"
                     value={transactionForm.transactionType}
-                    onChange={event => setTransactionForm(prev => ({ ...prev, transactionType: event.target.value, presetId: 'custom' }))}
+                    onChange={event =>
+                      setTransactionForm(prev => ({
+                        ...prev,
+                        transactionType: event.target.value,
+                        presetId: 'custom',
+                      }))
+                    }
                     required
                   />
                 </Field>
@@ -1279,7 +1505,13 @@ const Dashboard: React.FC = () => {
                   autoComplete="off"
                   spellCheck={false}
                   value={transactionForm.programId}
-                  onChange={event => setTransactionForm(prev => ({ ...prev, programId: event.target.value, presetId: 'custom' }))}
+                  onChange={event =>
+                    setTransactionForm(prev => ({
+                      ...prev,
+                      programId: event.target.value,
+                      presetId: 'custom',
+                    }))
+                  }
                   required
                 />
               </Field>
@@ -1292,7 +1524,13 @@ const Dashboard: React.FC = () => {
                   autoComplete="off"
                   spellCheck={false}
                   value={transactionForm.recipient}
-                  onChange={event => setTransactionForm(prev => ({ ...prev, recipient: event.target.value, presetId: 'custom' }))}
+                  onChange={event =>
+                    setTransactionForm(prev => ({
+                      ...prev,
+                      recipient: event.target.value,
+                      presetId: 'custom',
+                    }))
+                  }
                 />
               </Field>
 
@@ -1301,12 +1539,29 @@ const Dashboard: React.FC = () => {
                   id="transaction-memo"
                   className="input textarea"
                   value={transactionForm.memo}
-                  onChange={event => setTransactionForm(prev => ({ ...prev, memo: event.target.value, presetId: 'custom' }))}
+                  onChange={event =>
+                    setTransactionForm(prev => ({
+                      ...prev,
+                      memo: event.target.value,
+                      presetId: 'custom',
+                    }))
+                  }
                 />
               </Field>
 
-              <button className="btn btn-primary btn-full" type="submit" disabled={!functionsReady || !selectedAgentId || evaluationState === 'loading'}>
-                {evaluationState === 'loading' ? 'Evaluating...' : 'Run simulation'}
+              <button
+                className="btn btn-primary btn-full"
+                type="submit"
+                disabled={
+                  !wallet.connected ||
+                  !functionsReady ||
+                  !selectedAgentId ||
+                  evaluationState === 'loading'
+                }
+              >
+                {evaluationState === 'loading'
+                  ? 'Evaluating...'
+                  : 'Evaluate intent'}
               </button>
             </form>
 
@@ -1319,106 +1574,171 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="panel history-panel" aria-labelledby="history-title">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Transaction history</p>
-              <h2 id="history-title">Recent evaluations</h2>
+        <section
+          className="sg-console-activity"
+          id="console-activity"
+          data-console-section
+          aria-labelledby="activity-title"
+        >
+          <h2 id="activity-title">A record of every decision.</h2>
+          <p>Inspect the requests and audit events returned for your wallet.</p>
+          <nav aria-label="Activity records">
+            <a href="#console-history">Transaction history</a>
+            <a href="#console-audit">Audit log</a>
+          </nav>
+          <section
+            className="panel history-panel"
+            id="console-history"
+            aria-labelledby="history-title"
+          >
+            <div className="section-header">
+              <div>
+                <h2 id="history-title">Transaction history</h2>
+              </div>
             </div>
-            <span className="id-pill">From list-transaction-requests</span>
-          </div>
 
-          {historyState === 'error' ? (
-            <InlineError message={historyError} actionLabel="Retry history" onAction={() => refreshTransactionHistory()} />
-          ) : historyState === 'loading' ? (
-            <LoadingPanel label="Loading transaction history" />
-          ) : transactionHistory.length === 0 ? (
-            <div className="empty-state">
-              <strong>No transaction history returned</strong>
-              <p>Run a transaction simulation to create backend transaction request rows for this wallet.</p>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="audit-table">
-                <thead>
-                  <tr>
-                    <th>Decision</th>
-                    <th>Amount</th>
-                    <th>Type</th>
-                    <th>Program</th>
-                    <th>Reason</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactionHistory.map((request, index) => {
-                    const rowDecision = normalizeDecision(request.decision);
-                    return (
-                      <tr key={request.id ?? index}>
-                        <td><span className={`decision-chip ${rowDecision}`}>{rowDecision}</span></td>
-                        <td>{formatNumber(Number(request.amountSol ?? 0), 3)} SOL</td>
-                        <td>{request.intentType ?? 'Not returned'}</td>
-                        <td className="mono">{shorten(request.programId, 8, 6)}</td>
-                        <td>{request.reason || 'No reason returned'}</td>
-                        <td>{request.evaluatedAt ?? request.createdAt ?? 'Not returned'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+            {!wallet.connected ? (
+              <ConsoleRecordsEmpty kind="history">
+                Connect a wallet to view its records. Evaluated requests will
+                appear here.
+              </ConsoleRecordsEmpty>
+            ) : historyState === 'error' ? (
+              <InlineError
+                message={historyError}
+                actionLabel="Retry history"
+                onAction={() => refreshTransactionHistory()}
+              />
+            ) : historyState === 'loading' ? (
+              <LoadingPanel label="Loading transaction history" />
+            ) : transactionHistory.length === 0 ? (
+              <div className="empty-state">
+                <strong>No evaluations yet</strong>
+                <p>Evaluate an intent to see its request and decision here.</p>
+              </div>
+            ) : (
+              <div className="table-wrap" tabIndex={0}>
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Decision</th>
+                      <th>Amount</th>
+                      <th>Type</th>
+                      <th>Program</th>
+                      <th>Reason</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactionHistory.map((request, index) => {
+                      const rowDecision = normalizeDecision(request.decision);
+                      return (
+                        <tr key={request.id ?? index}>
+                          <td>
+                            <span className={`decision-chip ${rowDecision}`}>
+                              {rowDecision}
+                            </span>
+                          </td>
+                          <td>
+                            {formatNumber(Number(request.amountSol ?? 0), 3)}{' '}
+                            SOL
+                          </td>
+                          <td>{request.intentType ?? 'Not returned'}</td>
+                          <td className="mono">
+                            {shorten(request.programId, 8, 6)}
+                          </td>
+                          <td>{request.reason || 'No reason returned'}</td>
+                          <td>
+                            {request.evaluatedAt ??
+                              request.createdAt ??
+                              'Not returned'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
-        <section className="panel" aria-labelledby="audit-title">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Audit panel</p>
-              <h2 id="audit-title">Recent backend audit activity</h2>
+          <section
+            className="panel audit-panel"
+            id="console-audit"
+            aria-labelledby="audit-title"
+          >
+            <div className="section-header">
+              <div>
+                <h2 id="audit-title">Audit log</h2>
+              </div>
             </div>
-            <span className="id-pill">From list-audit-logs</span>
-          </div>
 
-          {auditState === 'error' ? (
-            <InlineError message={auditError} actionLabel="Retry audit logs" onAction={() => refreshAuditLogs()} />
-          ) : auditState === 'loading' ? (
-            <LoadingPanel label="Loading audit logs" />
-          ) : auditLogs.length === 0 ? (
-            <div className="empty-state">
-              <strong>No audit logs returned</strong>
-              <p>Run a transaction simulation or use the kill switch to create backend audit rows for this wallet.</p>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="audit-table">
-                <thead>
-                  <tr>
-                    <th>Decision</th>
-                    <th>Risk</th>
-                    <th>Reason</th>
-                    <th>Audit ID</th>
-                    <th>Request ID</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map((log, index) => {
-                    const rowDecision = normalizeDecision(log.decision);
-                    return (
-                      <tr key={log.id ?? log.auditLogId ?? index}>
-                        <td><span className={`decision-chip ${rowDecision}`}>{rowDecision}</span></td>
-                        <td>{Number(log.riskScore ?? 0)}</td>
-                        <td>{log.reason || log.transactionType || 'No reason returned'}</td>
-                        <td className="mono">{shorten(log.auditLogId ?? log.id)}</td>
-                        <td className="mono">{shorten(log.transactionRequestId)}</td>
-                        <td>{log.createdAt ?? log.timestamp ?? 'Not returned'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+            {!wallet.connected ? (
+              <ConsoleRecordsEmpty kind="audit">
+                Connect a wallet to view its audit log. Policy decisions and
+                pause events will appear here.
+              </ConsoleRecordsEmpty>
+            ) : auditState === 'error' ? (
+              <InlineError
+                message={auditError}
+                actionLabel="Retry audit logs"
+                onAction={() => refreshAuditLogs()}
+              />
+            ) : auditState === 'loading' ? (
+              <LoadingPanel label="Loading audit logs" />
+            ) : auditLogs.length === 0 ? (
+              <div className="empty-state">
+                <strong>No audit events yet</strong>
+                <p>
+                  Evaluate an intent or update emergency pause to create an
+                  audit event.
+                </p>
+              </div>
+            ) : (
+              <div className="table-wrap" tabIndex={0}>
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Decision</th>
+                      <th>Risk</th>
+                      <th>Reason</th>
+                      <th>Audit ID</th>
+                      <th>Request ID</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log, index) => {
+                      const rowDecision = normalizeDecision(log.decision);
+                      return (
+                        <tr key={log.id ?? log.auditLogId ?? index}>
+                          <td>
+                            <span className={`decision-chip ${rowDecision}`}>
+                              {rowDecision}
+                            </span>
+                          </td>
+                          <td>{Number(log.riskScore ?? 0)}</td>
+                          <td>
+                            {log.reason ||
+                              log.transactionType ||
+                              'No reason returned'}
+                          </td>
+                          <td className="mono">
+                            {shorten(log.auditLogId ?? log.id)}
+                          </td>
+                          <td className="mono">
+                            {shorten(log.transactionRequestId)}
+                          </td>
+                          <td>
+                            {log.createdAt ?? log.timestamp ?? 'Not returned'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </section>
       </section>
 
@@ -1427,7 +1747,7 @@ const Dashboard: React.FC = () => {
           {toast.message}
         </div>
       ) : null}
-    </main>
+    </ConsoleShell>
   );
 };
 
@@ -1450,166 +1770,104 @@ const splitLines = (value: string) => value
   .map(item => item.trim())
   .filter(Boolean);
 
-const AccessGate: React.FC<{ functionsReady: boolean; onViewDemo: () => void }> = ({ functionsReady, onViewDemo }) => (
-  <main className="gate-shell">
-    <nav className="gate-nav" aria-label="Primary">
-      <a className="brand" href="#top" aria-label="SolanaGuard home">
-        <span className="brand-mark" aria-hidden="true">SG</span>
-        <span>SolanaGuard</span>
-      </a>
-      <div className="topbar-actions">
-        <span className="network-pill">Devnet</span>
-        <WalletMultiButton />
-      </div>
-    </nav>
-
-    <section className="gate-stage" id="top">
-      <div className="gate-copy">
-        <p className="eyebrow">InsForge-powered policy engine now, Anchor enforcement next.</p>
-        <h1>Policy firewall for AI-agent Solana wallets</h1>
-        <p>
-          SolanaGuard checks every transaction an AI agent proposes against an owner-defined
-          policy before it runs. Explore a seeded demo instantly, or connect a wallet to
-          register real agents and policies.
-        </p>
-        <div className="gate-actions">
-          <button className="btn btn-primary" type="button" onClick={onViewDemo}>
-            View demo without wallet
-          </button>
-          <WalletMultiButton />
-          <span className="gate-note">Demo is read-only · wallet unlocks real usage</span>
-        </div>
-      </div>
-
-      <aside className="gate-visual" aria-label="SolanaGuard access status">
-        <div className="aperture" aria-hidden="true">
-          <span className="aperture-core" />
-          <span className="aperture-ring ring-a" />
-          <span className="aperture-ring ring-b" />
-          <span className="aperture-line line-a" />
-          <span className="aperture-line line-b" />
-        </div>
-        <div className="gate-ledger">
-          <div>
-            <span>Cluster</span>
-            <strong>devnet</strong>
-          </div>
-          <div>
-            <span>Demo</span>
-            <strong>no wallet needed</strong>
-          </div>
-          <div>
-            <span>Function base</span>
-            <strong>{functionsReady ? 'configured' : 'missing env'}</strong>
-          </div>
-        </div>
-      </aside>
-    </section>
-  </main>
-);
-
-const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
+const GuestDemo: React.FC<{ onExit: () => void; onConsole: () => void }> = ({
+  onExit,
+  onConsole,
+}) => {
   const [scenarioId, setScenarioId] = useState(GUEST_SCENARIOS[0].id);
-  const scenario = GUEST_SCENARIOS.find(item => item.id === scenarioId) ?? GUEST_SCENARIOS[0];
+  const scenario =
+    GUEST_SCENARIOS.find(item => item.id === scenarioId) ?? GUEST_SCENARIOS[0];
 
   return (
-    <main className="app-shell console-shell">
-      <header className="console-header" id="top">
-        <nav className="console-nav" aria-label="Primary">
-          <a className="brand" href="#top" aria-label="SolanaGuard console">
-            <span className="brand-mark" aria-hidden="true">SG</span>
-            <span>SolanaGuard</span>
-          </a>
-          <div className="topbar-actions">
-            <span className="network-pill">Devnet</span>
-            <button className="btn btn-secondary" type="button" onClick={onExit}>
-              Back
-            </button>
-            <WalletMultiButton />
-          </div>
-        </nav>
-
-        <section className="console-hero">
-          <div>
-            <p className="eyebrow">Guest demo mode</p>
-            <h1>Policy firewall</h1>
-            <p>See how SolanaGuard evaluates agent transactions — no wallet required.</p>
-          </div>
-        </section>
-      </header>
-
-      <div className="guest-banner" role="note">
-        <span>
-          <strong>Guest demo mode — seeded, read-only data.</strong> These values are illustrative
-          examples, not real activity. Connect a wallet to manage real policies.
-        </span>
-        <WalletMultiButton />
-      </div>
-
+    <ConsoleShell demo onHome={onExit} onConsole={onConsole}>
       <section className="guest-workspace" aria-label="SolanaGuard demo">
         <div className="guest-row">
-        <section className="panel" aria-labelledby="guest-agent-title">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Agent registry</p>
-              <h2 id="guest-agent-title">Seeded agent</h2>
+          <section
+            className="panel"
+            id="demo-agents"
+            data-console-section
+            aria-labelledby="guest-agent-title"
+          >
+            <div className="section-header">
+              <div>
+                <h2 id="guest-agent-title">Example agent</h2>
+                <p>
+                  A sample wallet and agent. This is not a registered account.
+                </p>
+              </div>
             </div>
-            <span className="id-pill">Demo</span>
-          </div>
-          <div className="wallet-details">
-            <span className="connection-dot connected" aria-hidden="true" />
-            <div>
-              <strong>{GUEST_AGENT.name}</strong>
-              <p className="mono">{shorten(GUEST_AGENT.walletAddress, 8, 8)}</p>
+            <div className="wallet-details">
+              <span className="connection-dot connected" aria-hidden="true" />
+              <div>
+                <strong>{GUEST_AGENT.name}</strong>
+                <p className="mono">
+                  {shorten(GUEST_AGENT.walletAddress, 8, 8)}
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="panel" aria-labelledby="guest-policy-title">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Policy builder</p>
-              <h2 id="guest-policy-title">Active risk policy</h2>
+          <section
+            className="panel"
+            id="demo-policy"
+            data-console-section
+            aria-labelledby="guest-policy-title"
+          >
+            <div className="section-header">
+              <div>
+                <h2 id="guest-policy-title">Example policy</h2>
+                <p>
+                  Scenarios below use these limits, with a separate paused-agent
+                  example.
+                </p>
+              </div>
+              <span
+                className={`decision-chip ${GUEST_POLICY.emergencyPause ? 'blocked' : 'allowed'}`}
+              >
+                {GUEST_POLICY.emergencyPause ? 'Paused' : 'Active'}
+              </span>
             </div>
-            <span className={`decision-chip ${GUEST_POLICY.emergencyPause ? 'blocked' : 'allowed'}`}>
-              {GUEST_POLICY.emergencyPause ? 'Paused' : 'Active'}
-            </span>
-          </div>
-          <dl className="result-list guest-policy-list">
-            <div>
-              <dt>Per-transaction limit</dt>
-              <dd>{GUEST_POLICY.maxTransactionAmount} SOL</dd>
-            </div>
-            <div>
-              <dt>Daily spending limit</dt>
-              <dd>{GUEST_POLICY.dailySpendingLimit} SOL</dd>
-            </div>
-            <div>
-              <dt>Manual approval threshold</dt>
-              <dd>{GUEST_POLICY.manualApprovalThreshold} SOL</dd>
-            </div>
-            <div>
-              <dt>Allowed programs</dt>
-              <dd>{GUEST_POLICY.allowedPrograms}</dd>
-            </div>
-            <div>
-              <dt>Blocked programs</dt>
-              <dd>{GUEST_POLICY.blockedPrograms}</dd>
-            </div>
-            <div>
-              <dt>Emergency pause</dt>
-              <dd>{GUEST_POLICY.emergencyPause ? 'Enabled' : 'Disabled'}</dd>
-            </div>
-          </dl>
-        </section>
-
+            <dl className="result-list guest-policy-list">
+              <div>
+                <dt>Per-transaction limit</dt>
+                <dd>{GUEST_POLICY.maxTransactionAmount} SOL</dd>
+              </div>
+              <div>
+                <dt>Daily spending limit</dt>
+                <dd>{GUEST_POLICY.dailySpendingLimit} SOL</dd>
+              </div>
+              <div>
+                <dt>Manual approval threshold</dt>
+                <dd>{GUEST_POLICY.manualApprovalThreshold} SOL</dd>
+              </div>
+              <div>
+                <dt>Allowed programs</dt>
+                <dd>{GUEST_POLICY.allowedPrograms}</dd>
+              </div>
+              <div>
+                <dt>Blocked programs</dt>
+                <dd>{GUEST_POLICY.blockedPrograms}</dd>
+              </div>
+              <div>
+                <dt>Emergency pause</dt>
+                <dd>{GUEST_POLICY.emergencyPause ? 'Enabled' : 'Disabled'}</dd>
+              </div>
+            </dl>
+          </section>
         </div>
 
-        <section className="panel" aria-labelledby="guest-sim-title">
+        <section
+          className="panel"
+          id="demo-simulator"
+          data-console-section
+          aria-labelledby="guest-sim-title"
+        >
           <div className="section-header">
             <div>
-              <p className="eyebrow">Transaction simulator</p>
-              <h2 id="guest-sim-title">Try an example decision</h2>
+              <h2 id="guest-sim-title">Check before you act.</h2>
+              <p>
+                Select a scenario to inspect an illustrative policy decision.
+              </p>
             </div>
             <span className="id-pill">{scenario.label}</span>
           </div>
@@ -1618,7 +1876,11 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
             <div className="form-stack">
               <div className="field">
                 <label id="guest-scenario-label">Example scenarios</label>
-                <div className="agent-picker" role="radiogroup" aria-labelledby="guest-scenario-label">
+                <div
+                  className="agent-picker"
+                  role="group"
+                  aria-labelledby="guest-scenario-label"
+                >
                   {GUEST_SCENARIOS.map(item => {
                     const active = item.id === scenario.id;
                     return (
@@ -1626,24 +1888,55 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
                         key={item.id}
                         className={`agent-option ${active ? 'active' : ''}`}
                         type="button"
-                        role="radio"
-                        aria-checked={active}
+                        aria-pressed={active}
                         onClick={() => setScenarioId(item.id)}
                       >
                         <span>
                           <strong>{item.label}</strong>
                           <small>{item.sublabel}</small>
                         </span>
-                        <span className={`decision-chip ${item.decision}`}>{item.decision}</span>
+                        <span className={`decision-chip ${item.decision}`}>
+                          {item.decision}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="field-hint">Pick a scenario to see how the policy engine would decide.</p>
+                <p className="field-hint">
+                  Examples are predefined, not a live backend evaluation.
+                </p>
+              </div>
+              <div className="sg-console-scenario-controls">
+                <span>
+                  Example{' '}
+                  {GUEST_SCENARIOS.findIndex(item => item.id === scenario.id) +
+                    1}{' '}
+                  of {GUEST_SCENARIOS.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setScenarioId(
+                      GUEST_SCENARIOS[
+                        (GUEST_SCENARIOS.findIndex(
+                          item => item.id === scenario.id,
+                        ) +
+                          1) %
+                          GUEST_SCENARIOS.length
+                      ].id,
+                    )
+                  }
+                >
+                  Next example →
+                </button>
               </div>
             </div>
 
-            <aside className={`result-panel ${scenario.decision}`}>
+            <aside
+              className={`result-panel ${scenario.decision}`}
+              aria-live="polite"
+              aria-atomic="true"
+            >
               <div className="decision-header">
                 <span>Decision</span>
                 <strong>{scenario.decision}</strong>
@@ -1655,7 +1948,12 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
                 </div>
                 <div>
                   <dt>Program</dt>
-                  <dd>{scenario.programLabel} <span className="mono">({shorten(scenario.programId, 6, 4)})</span></dd>
+                  <dd>
+                    {scenario.programLabel}{' '}
+                    <span className="mono">
+                      ({shorten(scenario.programId, 6, 4)})
+                    </span>
+                  </dd>
                 </div>
                 <div>
                   <dt>Risk score</dt>
@@ -1674,15 +1972,22 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           </div>
         </section>
 
-        <section className="panel" aria-labelledby="guest-audit-title">
+        <section
+          className="panel"
+          id="demo-activity"
+          data-console-section
+          aria-labelledby="guest-audit-title"
+        >
           <div className="section-header">
             <div>
-              <p className="eyebrow">Audit panel</p>
-              <h2 id="guest-audit-title">Sample audit log</h2>
+              <h2 id="guest-audit-title">Example audit log</h2>
+              <p>
+                Predefined records for these four scenarios. No real
+                transactions or timestamps.
+              </p>
             </div>
-            <span className="id-pill">Seeded</span>
           </div>
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table className="audit-table">
               <thead>
                 <tr>
@@ -1696,7 +2001,11 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
               <tbody>
                 {GUEST_SCENARIOS.map(item => (
                   <tr key={item.id}>
-                    <td><span className={`decision-chip ${item.decision}`}>{item.decision}</span></td>
+                    <td>
+                      <span className={`decision-chip ${item.decision}`}>
+                        {item.decision}
+                      </span>
+                    </td>
                     <td>{formatNumber(item.amountSol, 2)} SOL</td>
                     <td>{item.programLabel}</td>
                     <td>{item.riskScore}</td>
@@ -1710,47 +2019,26 @@ const GuestDemo: React.FC<{ onExit: () => void }> = ({ onExit }) => {
 
         <section className="panel guest-cta" aria-labelledby="guest-cta-title">
           <div>
-            <p className="eyebrow">Ready to use it for real?</p>
-            <h2 id="guest-cta-title">Connect wallet to create real agents and policies</h2>
+            <h2 id="guest-cta-title">Make the rules for your own agent.</h2>
             <p className="muted">
-              Devnet only · not audited · no mainnet · no real users yet · on-chain fund movement
-              (CPI) is still future work. Connecting a wallet opens the live InsForge-backed console.
+              Open the console and connect a wallet to register an agent and
+              create a policy on devnet.{' '}
             </p>
           </div>
-          <WalletMultiButton />
+          <button className="btn btn-primary" type="button" onClick={onConsole}>
+            Open console <ConsoleIcon name="arrow" />
+          </button>
         </section>
       </section>
-    </main>
+    </ConsoleShell>
   );
 };
 
-const WalletPanel: React.FC<{ walletAddress: string; connected: boolean }> = ({ walletAddress, connected }) => (
-  <section className="panel wallet-panel" aria-labelledby="wallet-title">
-    <div>
-      <p className="eyebrow">Wallet panel</p>
-      <h2 id="wallet-title">Solana wallet</h2>
-      <p className="muted">
-        {connected
-          ? 'This devnet wallet is linked to agent registration, policy creation, and transaction evaluation.'
-          : 'Connect a real devnet wallet before creating agents or evaluating policy.'}
-      </p>
-    </div>
-    <div className="wallet-details">
-      <span className={`connection-dot ${connected ? 'connected' : ''}`} aria-hidden="true" />
-      <div>
-        <strong>{connected ? 'Connected' : 'Disconnected'}</strong>
-        <p className="mono">{connected ? walletAddress : 'Backpack or Phantom wallet required'}</p>
-      </div>
-    </div>
-    <WalletMultiButton />
-  </section>
-);
-
-const StatTile: React.FC<{ label: string; value: number | string; tone?: 'neutral' | 'accent' | 'warning' | 'danger' }> = ({
-  label,
-  value,
-  tone = 'neutral',
-}) => (
+const StatTile: React.FC<{
+  label: string;
+  value: number | string;
+  tone?: 'neutral' | 'accent' | 'warning' | 'danger';
+}> = ({ label, value, tone = 'neutral' }) => (
   <article className={`stat-tile ${tone}`}>
     <span>{label}</span>
     <strong>{value}</strong>
@@ -1767,19 +2055,25 @@ const StatsSkeleton: React.FC = () => (
 
 const ConfigNotice: React.FC = () => (
   <div className="config-notice" role="status">
-    <div>
-      <strong>Function endpoint not configured</strong>
-      <p>Add `VITE_INSFORGE_FUNCTIONS_URL` to `app/.env` and restart Vite to enable backend stats, agent creation, policy creation, and transaction simulations.</p>
-    </div>
-    <code>VITE_INSFORGE_FUNCTIONS_URL=https://.../functions</code>
+    <strong>Policy service is unavailable</strong>
+    <p>
+      This instance is not connected to its policy service. You can explore the
+      read-only demo while setup is completed.
+    </p>
   </div>
 );
 
-const InlineError: React.FC<{ message: string; actionLabel: string; onAction: () => void }> = ({ message, actionLabel, onAction }) => (
+const InlineError: React.FC<{
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+}> = ({ message, actionLabel, onAction }) => (
   <div className="inline-error" role="alert">
     <strong>Backend request failed</strong>
     <p>{message}</p>
-    <button className="btn btn-secondary" type="button" onClick={onAction}>{actionLabel}</button>
+    <button className="btn btn-secondary" type="button" onClick={onAction}>
+      {actionLabel}
+    </button>
   </div>
 );
 
@@ -1799,7 +2093,8 @@ const Field: React.FC<{
 }> = ({ label, htmlFor, required, hint, children }) => (
   <div className="field">
     <label htmlFor={htmlFor}>
-      {label}{required ? ' *' : ''}
+      {label}
+      {required ? ' *' : ''}
     </label>
     {children}
     {hint ? <p className="field-hint">{hint}</p> : null}
@@ -1813,40 +2108,28 @@ const AgentSelect: React.FC<{
   value: string;
   onChange: (value: string) => void;
 }> = ({ id, agents, totalAgents, value, onChange }) => {
-  const selected = agents.find(agent => agent.id === value);
   const hint = agents.length
-    ? `Showing ${agents.length} selectable agent${agents.length === 1 ? '' : 's'} from backend stats${totalAgents > agents.length ? `; ${totalAgents} total backend agents.` : '.'}`
-    : 'Create an agent, refresh stats, or seed demo data first.';
-
+    ? `${agents.length} selectable agent${agents.length === 1 ? '' : 's'}${totalAgents > agents.length ? ` of ${totalAgents} registered agents` : ''}.`
+    : 'Connect a wallet and register an agent to continue.';
   return (
     <Field label="Agent" htmlFor={id} required hint={hint}>
-      <input id={id} type="hidden" value={value} required readOnly />
-      <div className="agent-picker" role="radiogroup" aria-label="Agent">
-        {agents.length === 0 ? (
-          <div className="agent-empty">No selectable agents returned yet</div>
-        ) : (
-          agents.map(agent => {
-            const active = agent.id === value;
-            return (
-              <button
-                key={agent.id}
-                className={`agent-option ${active ? 'active' : ''}`}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => onChange(agent.id)}
-              >
-                <span>
-                  <strong>{agent.name}</strong>
-                  <small>{agent.walletAddress ? shorten(agent.walletAddress, 8, 8) : `${agent.source} agent`}</small>
-                </span>
-                <code>{shorten(agent.id, 8, 6)}</code>
-              </button>
-            );
-          })
-        )}
-      </div>
-      {selected ? <p className="selected-agent-note">Selected: {selected.name} - {shorten(selected.id, 8, 6)}</p> : null}
+      <select
+        id={id}
+        className="input"
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        required
+        disabled={agents.length === 0}
+      >
+        <option value="" disabled>
+          {agents.length ? 'Select an agent' : 'No agents yet'}
+        </option>
+        {agents.map(agent => (
+          <option key={agent.id} value={agent.id}>
+            {agent.name} — {shorten(agent.id, 8, 6)}
+          </option>
+        ))}
+      </select>
     </Field>
   );
 };
@@ -1872,15 +2155,20 @@ const EvaluationPanel: React.FC<{
     return (
       <aside className="result-panel">
         <div className="result-empty">
-          <strong>No decision yet</strong>
-          <p>Run a preset or custom transaction to see decision, risk score, policy match, audit log ID, and alert ID.</p>
+          <ConsoleIcon name="shield" />
+          <strong>A decision starts here.</strong>
+          <p>
+            Choose an agent and evaluate a request to see the risk score,
+            matched rules, and reason.
+          </p>
+          <small>Policy evaluation only. No funds are moved.</small>
         </div>
       </aside>
     );
   }
 
   return (
-    <aside className={`result-panel ${decision}`}>
+    <aside className={`result-panel ${decision}`} aria-live="polite">
       <div className="decision-header">
         <span>Decision</span>
         <strong>{decision}</strong>
@@ -1896,7 +2184,11 @@ const EvaluationPanel: React.FC<{
         </div>
         <div>
           <dt>Matched rules</dt>
-          <dd>{matchedRules.length ? matchedRules.map(formatRule).join(', ') : 'None returned'}</dd>
+          <dd>
+            {matchedRules.length
+              ? matchedRules.map(formatRule).join(', ')
+              : 'None returned'}
+          </dd>
         </div>
         <div>
           <dt>Audit log ID</dt>
